@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نبني - منصة مدرسي التأسيس</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#21c077',       /* Main green from design */
+                        primaryHover: '#1ba565',
+                        darkBg: '#1e293b',        /* Footer background */
+                        lightBg: '#fdfdfc',       /* General page background */
+                        cardBg: '#faf9f6',        /* Hero section container background */
+                        orangeAccent: '#f59e0b',  /* Star & Badges */
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-lightBg text-gray-800 antialiased dark:bg-slate-900 dark:text-gray-100 transition-colors duration-300 relative">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transform translate-y-full opacity-0 transition-all duration-300 bg-gray-800 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl dark:bg-white dark:text-gray-900">
+        <div class="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">
+            <i class="fa-solid fa-check"></i>
+        </div>
+        <span class="text-sm font-bold">تم الاشتراك بنجاح! شكراً لك.</span>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="container mx-auto px-4 lg:px-8 py-5 flex items-center justify-between animate-fade-in relative z-40">
+        <!-- Logo -->
+        <a href="#" class="text-primary font-extrabold text-3xl tracking-tight">نبني</a>
+
+        <!-- Desktop Menu -->
+        <ul class="hidden lg:flex gap-10 text-[15px] font-semibold text-gray-600 dark:text-gray-300">
+            <li><a href="#" class="text-primary border-b-2 border-primary pb-1">الرئيسية</a></li>
+            <li><a href="#" class="hover:text-primary transition">كيف تعمل المنصة</a></li>
+            <li><a href="#" class="hover:text-primary transition">المدرسون</a></li>
+            <li><a href="#" class="hover:text-primary transition">من نحن</a></li>
+        </ul>
+
+        <!-- Auth & Actions (Desktop) -->
+        <div class="hidden lg:flex items-center gap-4 text-[15px]">
+            <!-- Dark Mode Toggle -->
+            <button id="theme-toggle" class="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-gray-400 transition-colors">
+                <i id="theme-toggle-icon" class="fa-solid fa-moon text-lg"></i>
+            </button>
+            <a href="#" class="text-primary font-semibold hover:underline trigger-login">تسجيل الدخول</a>
+            <a href="#" class="border border-primary text-primary px-6 py-2 rounded-full font-semibold hover:bg-green-50 dark:hover:bg-slate-800 transition trigger-signup">إنشاء حساب</a>
+            <a href="#" class="bg-primary text-white px-6 py-2 rounded-full font-semibold flex items-center gap-2 hover:bg-primaryHover transition shadow-sm border border-primary">
+                <i class="fa-solid fa-magnifying-glass text-sm"></i> ابحث عن مدرس
+            </a>
+        </div>
+
+        <!-- Mobile Menu Toggle & Theme Toggle -->
+        <div class="flex lg:hidden items-center gap-4">
+             <button id="theme-toggle-mobile" class="text-gray-500 dark:text-gray-400 text-xl hidden"> <!-- Optionally add mobile toggle -->
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <button id="mobile-menu-btn" class="text-gray-700 dark:text-gray-200 text-2xl">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Side Menu -->
+    <div id="mobile-menu" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-y-0 right-0 w-64 bg-white dark:bg-slate-800 shadow-2xl transform translate-x-100 transition-transform duration-300 ease-in-out z-20 flex flex-col pt-8 px-6">
+            <div class="flex justify-between items-center mb-8">
+                <a href="#" class="text-primary font-extrabold text-2xl">نبني</a>
+                <button id="close-mobile-menu" class="text-gray-500 dark:text-gray-400 text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <ul class="flex flex-col gap-6 text-lg font-semibold text-gray-700 dark:text-gray-200">
+                <li><a href="#" class="text-primary block">الرئيسية</a></li>
+                <li><a href="#" class="hover:text-primary transition block">كيف تعمل المنصة</a></li>
+                <li><a href="#" class="hover:text-primary transition block">المدرسون</a></li>
+                <li><a href="#" class="hover:text-primary transition block">من نحن</a></li>
+            </ul>
+            <div class="mt-auto pb-8 flex flex-col gap-4">
+                <a href="#" class="w-full text-center border border-primary text-primary px-6 py-3 rounded-full font-bold trigger-login">تسجيل الدخول</a>
+                <a href="#" class="w-full text-center bg-primary text-white px-6 py-3 rounded-full font-bold trigger-signup">إنشاء حساب</a>
+            </div>
+        </div>
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm opacity-0 transition-opacity duration-300 z-10 cursor-pointer"></div>
+    </div>
+
+    <!-- Hero Section -->
+    <div class="container mx-auto px-4 lg:px-8 mt-4 mb-20 animate-slide-up" style="animation-delay: 0.1s;">
+        <section class="bg-cardBg dark:bg-slate-800 rounded-[2.5rem] lg:rounded-[3.5rem] flex flex-col lg:flex-row items-center py-12 px-6 lg:py-16 lg:px-20 gap-12 relative overflow-hidden transition-colors duration-300">
+            
+            <!-- Hero Content -->
+            <div class="flex-1 flex flex-col items-start z-10 space-y-6">
+                <!-- Badge -->
+                <div class="bg-orange-50 dark:bg-slate-700 text-orange-600 dark:text-orange-400 text-sm font-bold px-4 py-1.5 rounded-full flex items-center gap-2">
+                    <i class="fa-solid fa-star text-xs"></i>
+                    المنصة الأولى لمدرسي التأسيس في مصر
+                </div>
+
+                <!-- Main Title -->
+                <h1 class="text-4xl lg:text-[3.25rem] font-extrabold text-gray-900 dark:text-white leading-[1.3] lg:leading-[1.4]">
+                    نبني مستقبل طفلك <br>
+                    <span class="text-primary curved-underline">من أول خطوة</span>
+                </h1>
+
+                <!-- Subtitle -->
+                <p class="text-gray-500 dark:text-gray-400 text-base lg:text-lg font-medium max-w-lg leading-relaxed">
+                    منصة تربط أولياء الأمور بمدرسي التأسيس المتخصصين لمساعدة الأطفال على بناء أساس قوي للتعلم في بيئة آمنة وموثوقة.
+                </p>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap items-center gap-4 mt-2">
+                    <button class="bg-primary text-white px-8 py-3.5 rounded-full font-bold flex items-center gap-2 hover:bg-primaryHover transition shadow-md shadow-primary/20 transform hover:-translate-y-1">
+                        <i class="fa-solid fa-magnifying-glass"></i> ابحث عن مدرس
+                    </button>
+                    <button class="border border-primary text-primary px-8 py-3.5 rounded-full font-bold hover:bg-green-50 dark:hover:bg-slate-700 transition bg-white dark:bg-transparent transform hover:-translate-y-1 trigger-signup">
+                        سجل كمدرس
+                    </button>
+                </div>
+
+                <!-- Social Proof -->
+                <div class="flex items-center gap-3 mt-6">
+                    <div class="flex -space-x-3 space-x-reverse">
+                        <img class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 object-cover" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Parent">
+                        <img class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 object-cover" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80" alt="Parent">
+                        <img class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" alt="Parent">
+                        <div class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">5k+</div>
+                    </div>
+                    <span class="text-gray-600 dark:text-gray-400 font-medium text-sm">ولي أمر يثقون في <span class="text-primary font-bold">نبني</span></span>
+                </div>
+            </div>
+
+            <!-- Hero Image/Illustration -->
+            <div class="flex-1 relative w-full h-[400px] lg:h-[500px]">
+                <div class="w-full h-full rounded-3xl overflow-hidden shadow-2xl shadow-gray-200/50 dark:shadow-black/50 bg-white dark:bg-slate-800 p-4 transition-colors">
+                     <img src="file:///C:/Users/MohamedA/Downloads/Nabni/Gemini_Generated_Image_n9k16cn9k16cn9k1.png" alt="Family learning" class="w-full h-full object-cover rounded-2xl opacity-90 transition-opacity hover:opacity-100">
+                </div>
+                
+                <!-- Floating Rating Badge -->
+                <div class="absolute -top-6 left-6 lg:left-12 glass-panel px-5 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] flex items-center gap-4 z-20 animate-slide-up" style="animation-delay: 0.3s;">
+                    <div class="flex flex-col text-left">
+                        <span class="font-bold text-gray-800 dark:text-white text-sm">تقييم ممتاز</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-300 font-medium mt-0.5">4.9/5 متوسط المدرسين</span>
+                    </div>
+                    <div class="bg-orange-50 dark:bg-slate-700 w-10 h-10 rounded-full flex items-center justify-center text-orangeAccent text-lg">
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Floating Search Bar -->
+    <div class="container mx-auto px-4 lg:px-8 -mt-28 relative z-30 animate-slide-up" style="animation-delay: 0.2s;">
+        <div class="bg-white dark:bg-slate-800 rounded-full shadow-[0_15px_50px_rgba(0,0,0,0.06)] dark:shadow-black/50 p-3 lg:p-4 max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-4 lg:gap-0 transition-colors">
+            
+            <div class="flex-1 flex w-full flex-col lg:flex-row gap-4 lg:gap-0">
+                
+                <!-- Location -->
+                <div id="gov-container" class="flex-1 flex items-center gap-3 px-4 lg:px-6 relative cursor-pointer group">
+                    <div class="flex flex-col flex-1">
+                        <label class="text-xs text-gray-400 dark:text-gray-500 font-semibold mb-1 cursor-pointer">المحافظة</label>
+                        <div class="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                            <i class="fa-solid fa-location-dot text-gray-400 group-hover:text-primary transition-colors"></i>
+                            <input id="gov-input" type="text" readonly placeholder="اختر المحافظة" class="w-full outline-none text-sm font-semibold bg-transparent placeholder-gray-400 cursor-pointer">
+                            <i class="fa-solid fa-chevron-down text-xs text-gray-300"></i>
+                        </div>
+                    </div>
+                    <!-- Dropdown -->
+                    <div class="custom-dropdown hidden absolute top-full right-0 mt-4 w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden">
+                        <ul class="py-2 max-h-48 overflow-y-auto no-scrollbar"></ul>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="hidden lg:block w-px h-12 bg-gray-100 dark:bg-slate-700"></div>
+                
+                <!-- Subject -->
+                <div id="sub-container" class="flex-1 flex items-center gap-3 px-4 lg:px-6 relative cursor-pointer group">
+                    <div class="flex flex-col flex-1">
+                        <label class="text-xs text-gray-400 dark:text-gray-500 font-semibold mb-1 cursor-pointer">المادة الدراسية</label>
+                        <div class="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                            <i class="fa-regular fa-file-lines text-gray-400 group-hover:text-primary transition-colors"></i>
+                            <input id="sub-input" type="text" readonly placeholder="اختر المادة" class="w-full outline-none text-sm font-semibold bg-transparent placeholder-gray-400 cursor-pointer">
+                            <i class="fa-solid fa-chevron-down text-xs text-gray-300"></i>
+                        </div>
+                    </div>
+                    <!-- Dropdown -->
+                    <div class="custom-dropdown hidden absolute top-full right-0 mt-4 w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden">
+                        <ul class="py-2 max-h-48 overflow-y-auto no-scrollbar"></ul>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="hidden lg:block w-px h-12 bg-gray-100 dark:bg-slate-700"></div>
+
+                <!-- Lesson Type -->
+                <div id="type-container" class="flex-1 flex items-center gap-3 px-4 lg:px-6 relative cursor-pointer group">
+                    <div class="flex flex-col flex-1">
+                        <label class="text-xs text-gray-400 dark:text-gray-500 font-semibold mb-1 cursor-pointer">نوع الدرس</label>
+                        <div class="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                            <i class="fa-solid fa-house text-gray-400 group-hover:text-primary transition-colors"></i>
+                            <input id="type-input" type="text" readonly placeholder="أونلاين / في المنزل" class="w-full outline-none text-sm font-semibold bg-transparent placeholder-gray-400 cursor-pointer">
+                            <i class="fa-solid fa-chevron-down text-xs text-gray-300"></i>
+                        </div>
+                    </div>
+                    <!-- Dropdown -->
+                    <div class="custom-dropdown hidden absolute top-full right-0 mt-4 w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden">
+                        <ul class="py-2 max-h-48 overflow-y-auto no-scrollbar"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Button -->
+            <button class="w-full lg:w-auto bg-primary text-white rounded-full lg:rounded-full px-10 py-4 font-bold text-sm hover:bg-primaryHover transition shadow-md whitespace-nowrap transform hover:-translate-y-0.5">
+                <i class="fa-solid fa-magnifying-glass ml-2"></i> بحث سريع
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <section class="container mx-auto px-4 lg:px-8 py-24">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10 text-center divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-gray-100 dark:divide-slate-700">
+            <div class="py-4 hover:-translate-y-1 transition duration-300">
+                <h3 class="text-5xl font-bold text-primary mb-3">12000 <span class="text-4xl font-medium">+</span></h3>
+                <p class="text-gray-500 dark:text-gray-400 font-medium">حصة دراسية ناجحة</p>
+            </div>
+            <div class="py-4 hover:-translate-y-1 transition duration-300">
+                <h3 class="text-5xl font-bold text-orange-400 mb-3">5000 <span class="text-4xl font-medium">+</span></h3>
+                <p class="text-gray-500 dark:text-gray-400 font-medium">ولي أمر يثق بنا</p>
+            </div>
+            <div class="py-4 hover:-translate-y-1 transition duration-300">
+                <h3 class="text-5xl font-bold text-primary mb-3">1000 <span class="text-4xl font-medium">+</span></h3>
+                <p class="text-gray-500 dark:text-gray-400 font-medium">مدرس معتمد</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="bg-[#fafafc] dark:bg-slate-800/50 py-20 transition-colors duration-300">
+        <div class="container mx-auto px-4 lg:px-8 text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white mb-4">كيف تعمل نبني؟</h2>
+            <p class="text-gray-500 dark:text-gray-400 font-medium mb-16">خطوات بسيطة للوصول إلى المدرس المناسب لطفلك والبدء في رحلة التعلم.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Step 1 -->
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 relative shadow-[0_5px_30px_rgba(0,0,0,0.03)] dark:shadow-black/20 border border-gray-50 dark:border-slate-700 pt-16 mt-6 hover:-translate-y-2 transition duration-300">
+                    <div class="absolute -top-10 left-1/2 -translate-x-1/2">
+                        <div class="w-20 h-20 bg-green-50 dark:bg-slate-700 rounded-full flex items-center justify-center relative shadow-sm">
+                            <i class="fa-regular fa-file-lines text-primary text-3xl"></i>
+                            <div class="absolute top-0 right-0 w-7 h-7 bg-orange-400 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">1</div>
+                        </div>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 dark:text-white mb-3">أنشئ طلبك</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">أخبرنا باحتياجات طفلك وموقعه والمرحلة الدراسية بكل سهولة.</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 relative shadow-[0_5px_30px_rgba(0,0,0,0.03)] dark:shadow-black/20 border border-gray-50 dark:border-slate-700 pt-16 mt-6 hover:-translate-y-2 transition duration-300">
+                    <div class="absolute -top-10 left-1/2 -translate-x-1/2">
+                        <div class="w-20 h-20 bg-orange-50 dark:bg-slate-700 rounded-full flex items-center justify-center relative shadow-sm">
+                            <i class="fa-regular fa-envelope text-orange-400 text-3xl"></i>
+                            <div class="absolute top-0 right-0 w-7 h-7 bg-orange-400 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">2</div>
+                        </div>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 dark:text-white mb-3">استقبل العروض</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">يتقدم المدرسون المناسبون لطلبك مع عرض السعر وخطة مبدئية.</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 relative shadow-[0_5px_30px_rgba(0,0,0,0.03)] dark:shadow-black/20 border border-gray-50 dark:border-slate-700 pt-16 mt-6 hover:-translate-y-2 transition duration-300">
+                    <div class="absolute -top-10 left-1/2 -translate-x-1/2">
+                        <div class="w-20 h-20 bg-green-50 dark:bg-slate-700 rounded-full flex items-center justify-center relative shadow-sm">
+                            <i class="fa-solid fa-user-check text-primary text-3xl"></i>
+                            <div class="absolute top-0 right-0 w-7 h-7 bg-orange-400 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">3</div>
+                        </div>
+                    </div>
+                    <h4 class="text-xl font-bold text-gray-800 dark:text-white mb-3">اختر الأنسب</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">راجع الملفات الشخصية، التقييمات، واختر المدرس الأفضل لطفلك.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Tutors Section -->
+    <section class="container mx-auto px-4 lg:px-8 py-24">
+        <div class="flex justify-between items-end mb-12">
+            <div>
+                <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white mb-3">نخبة من المدرسين</h2>
+                <p class="text-gray-500 dark:text-gray-400 font-medium">تعرف على أفضل المدرسين تقييماً على المنصة.</p>
+            </div>
+            <a href="#" class="text-primary font-bold hover:underline flex items-center gap-2 pb-1 group">
+                عرض الكل <i class="fa-solid fa-arrow-left text-sm transform group-hover:-translate-x-1 transition"></i>
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            
+            <!-- Tutor Card 1 -->
+            <div class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-3xl p-6 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)] dark:shadow-black/20 hover:-translate-y-2 transition duration-300">
+                <div class="relative inline-block mx-auto mb-4">
+                    <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80" alt="Tutor" class="w-20 h-20 rounded-full object-cover shadow-sm">
+                    <div class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                </div>
+                <h4 class="text-lg font-bold text-gray-800 dark:text-white">أ. أحمد محمود</h4>
+                <div class="flex items-center justify-center gap-1 text-orange-400 font-bold text-sm my-2">
+                    4.9 <i class="fa-solid fa-star text-xs"></i> <span class="text-gray-400 font-normal text-xs">(120 تقييم)</span>
+                </div>
+                <div class="flex justify-center gap-2 mt-4 mb-6">
+                    <span class="bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-bold">لغة عربية</span>
+                    <span class="bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-bold">تأسيس</span>
+                </div>
+                <button class="w-full border border-primary text-primary font-bold rounded-full py-2.5 hover:bg-primary hover:text-white transition trigger-profile">عرض الملف الشخصي</button>
+            </div>
+
+            <!-- Tutor Card 2 -->
+            <div class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-3xl p-6 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)] dark:shadow-black/20 hover:-translate-y-2 transition duration-300">
+                <div class="relative inline-block mx-auto mb-4">
+                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80" alt="Tutor" class="w-20 h-20 rounded-full object-cover shadow-sm">
+                    <div class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                </div>
+                <h4 class="text-lg font-bold text-gray-800 dark:text-white">أ. سارة حسن</h4>
+                <div class="flex items-center justify-center gap-1 text-orange-400 font-bold text-sm my-2">
+                    4.8 <i class="fa-solid fa-star text-xs"></i> <span class="text-gray-400 font-normal text-xs">(85 تقييم)</span>
+                </div>
+                <div class="flex justify-center gap-2 mt-4 mb-6">
+                    <span class="bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-bold">رياضيات</span>
+                    <span class="bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-bold">إبتدائي</span>
+                </div>
+                <button class="w-full border border-primary text-primary font-bold rounded-full py-2.5 hover:bg-primary hover:text-white transition trigger-profile">عرض الملف الشخصي</button>
+            </div>
+
+            <!-- Tutor Card 3 -->
+            <div class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-3xl p-6 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)] dark:shadow-black/20 hover:-translate-y-2 transition duration-300">
+                <div class="relative inline-block mx-auto mb-4">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80" alt="Tutor" class="w-20 h-20 rounded-full object-cover shadow-sm">
+                    <div class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                </div>
+                <h4 class="text-lg font-bold text-gray-800 dark:text-white">أ. محمد علي</h4>
+                <div class="flex items-center justify-center gap-1 text-orange-400 font-bold text-sm my-2">
+                    5.0 <i class="fa-solid fa-star text-xs"></i> <span class="text-gray-400 font-normal text-xs">(210 تقييم)</span>
+                </div>
+                <div class="flex justify-center gap-2 mt-4 mb-6">
+                    <span class="bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-bold">لغة إنجليزية</span>
+                    <span class="bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-bold">محادثة</span>
+                </div>
+                <button class="w-full border border-primary text-primary font-bold rounded-full py-2.5 hover:bg-primary hover:text-white transition trigger-profile">عرض الملف الشخصي</button>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Partners Section -->
+    <section class="container mx-auto px-4 lg:px-8 py-12 text-center border-t border-gray-100 dark:border-slate-800">
+        <h3 class="text-xl font-bold text-gray-600 dark:text-gray-400 mb-10">شركاء النجاح</h3>
+        <div class="flex flex-wrap justify-center items-center gap-12 lg:gap-24 text-gray-400 dark:text-slate-600 text-4xl">
+            <i class="fa-solid fa-graduation-cap hover:text-gray-600 dark:hover:text-gray-400 transition cursor-pointer hover:scale-110"></i>
+            <i class="fa-solid fa-book-open hover:text-gray-600 dark:hover:text-gray-400 transition cursor-pointer hover:scale-110"></i>
+            <i class="fa-solid fa-building-columns hover:text-gray-600 dark:hover:text-gray-400 transition cursor-pointer hover:scale-110"></i>
+            <i class="fa-solid fa-satellite-dish hover:text-gray-600 dark:hover:text-gray-400 transition cursor-pointer hover:scale-110"></i>
+            <i class="fa-solid fa-flask hover:text-gray-600 dark:hover:text-gray-400 transition cursor-pointer hover:scale-110"></i>
+        </div>
+    </section>
+
+    <!-- Newsletter Section -->
+    <section class="container mx-auto px-4 lg:px-8 py-20 pb-32 relative">
+        <div class="absolute inset-0 bg-primary/5 dark:bg-primary/10 rounded-[3rem] -z-10 transform scale-95 origin-bottom"></div>
+        <div class="bg-white dark:bg-slate-800 rounded-[2.5rem] p-10 lg:p-16 text-center max-w-4xl mx-auto shadow-[0_15px_60px_rgba(0,0,0,0.05)] dark:shadow-black/20 border border-gray-50 dark:border-slate-700 relative overflow-hidden">
+            
+            <div class="w-16 h-16 bg-green-50 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fa-regular fa-envelope text-primary text-2xl"></i>
+            </div>
+            
+            <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white mb-4">اشترك في نشرتنا البريدية</h2>
+            <p class="text-gray-500 dark:text-gray-400 font-medium mb-10">احصل على أحدث النصائح التعليمية وعروض المدرسين مباشرة في بريدك.</p>
+
+            <form id="newsletter-form" class="relative w-full max-w-lg mx-auto">
+                <input type="email" placeholder="البريد الإلكتروني" required class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-full py-4 pr-6 pl-32 text-sm font-semibold outline-none focus:border-primary dark:focus:border-primary shadow-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 transition">
+                <button type="submit" class="absolute left-1.5 top-1.5 bottom-1.5 bg-primary text-white rounded-full px-8 font-bold text-sm hover:bg-primaryHover transition flex items-center gap-2">اشترك <i class="fa-solid fa-paper-plane text-xs"></i></button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-darkBg text-white pt-20 pb-8 border-t-4 border-primary">
+        <div class="container mx-auto px-4 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8 mb-16">
+                
+                <!-- Brand Info -->
+                <div class="lg:col-span-2">
+                    <a href="#" class="text-primary font-extrabold text-4xl tracking-tight mb-6 inline-block">نبني</a>
+                    <p class="text-slate-400 text-sm leading-relaxed max-w-sm mb-6 font-medium">
+                        منصة نبني هي وجهتك الأولى للبحث عن أفضل مدرسي التأسيس في مصر. نوفر بيئة تعليمية آمنة وموثوقة.
+                    </p>
+                    <div class="flex items-center gap-3">
+                        <a href="#" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-sm hover:bg-primary hover:text-white transition transform hover:scale-110"><i class="fa-brands fa-twitter"></i></a>
+                        <a href="#" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-sm hover:bg-primary hover:text-white transition transform hover:scale-110"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-sm hover:bg-primary hover:text-white transition transform hover:scale-110"><i class="fa-brands fa-facebook-f"></i></a>
+                    </div>
+                </div>
+
+                <!-- Links: Explore -->
+                <div>
+                    <h4 class="text-orange-400 font-bold mb-6 text-lg">استكشف</h4>
+                    <ul class="space-y-4 text-slate-400 text-sm font-medium">
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">الرئيسية</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">البحث عن مدرس</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">كيف تعمل المنصة</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">المقالات والنصائح</a></li>
+                    </ul>
+                </div>
+
+                <!-- Links: For Tutors -->
+                <div>
+                    <h4 class="text-orange-400 font-bold mb-6 text-lg">للمدرسين</h4>
+                    <ul class="space-y-4 text-slate-400 text-sm font-medium">
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition trigger-signup">سجل كمدرس</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">دليل المدرس</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">قصص نجاح</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">الأسئلة الشائعة</a></li>
+                    </ul>
+                </div>
+
+                <!-- Links: Legal -->
+                <div>
+                    <h4 class="text-orange-400 font-bold mb-6 text-lg">قانوني</h4>
+                    <ul class="space-y-4 text-slate-400 text-sm font-medium">
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">شروط الاستخدام</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">سياسة الخصوصية</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">سياسة الاسترجاع</a></li>
+                        <li><a href="#" class="hover:text-white hover:translate-x-1 inline-block transition">تواصل معنا</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Copyright -->
+            <div class="border-t border-slate-800 pt-8 text-center text-slate-500 text-sm font-medium flex flex-col md:flex-row items-center justify-center gap-2">
+                &copy; 2024 منصة نبني التعليمية. جميع الحقوق محفوظة.
+            </div>
+        </div>
+    </footer>
+
+    <!-- MODALS -->
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40 modal-backdrop"></div>
+        <div class="relative bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-8 overflow-hidden">
+            <button class="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-white transition close-modal"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="text-center mb-8">
+                <h3 class="text-2xl font-extrabold text-primary mb-2">تسجيل الدخول</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">مرحباً بك مجدداً في منصة نبني</p>
+            </div>
+            <form class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">البريد الإلكتروني</label>
+                    <input type="email" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary transition" placeholder="أدخل بريدك الإلكتروني">
+                </div>
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">كلمة المرور</label>
+                        <a href="#" class="text-xs text-primary hover:underline">نسيت كلمة المرور؟</a>
+                    </div>
+                    <input type="password" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary transition" placeholder="أدخل كلمة المرور">
+                </div>
+                <button type="submit" class="w-full bg-primary text-white rounded-xl py-3.5 font-bold hover:bg-primaryHover transition mt-2">تسجيل الدخول</button>
+            </form>
+            <div class="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">
+                ليس لديك حساب؟ <a href="#" class="text-primary font-bold hover:underline close-modal trigger-signup">سجل الآن</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signup Modal -->
+    <div id="signup-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40 modal-backdrop"></div>
+        <div class="relative bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg p-8 overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar">
+            <button class="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-white transition close-modal"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="text-center mb-8 mt-2">
+                <h3 class="text-2xl font-extrabold text-primary mb-2">إنشاء حساب جديد</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">انضم إلينا كولي أمر أو مدرس لتجربة تعليمية فريدة</p>
+            </div>
+            
+            <form id="signup-form" onsubmit="event.preventDefault(); alert('تم إنشاء الحساب بنجاح!'); document.getElementById('signup-modal').querySelector('.close-modal').click();" class="space-y-0">
+                
+                <!-- Step 1 -->
+                <div id="signup-step-1">
+                    <div class="flex gap-4 mb-6">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="account_type" id="acc-parent" class="peer sr-only" checked>
+                            <div class="text-center border-2 border-gray-200 dark:border-slate-700 rounded-xl py-3 peer-checked:border-primary peer-checked:bg-green-50 dark:peer-checked:bg-slate-700 transition">
+                                <i class="fa-solid fa-users text-xl text-gray-400 peer-checked:text-primary mb-1"></i>
+                                <div class="font-bold text-gray-700 dark:text-gray-300">ولي أمر</div>
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="account_type" id="acc-tutor" class="peer sr-only">
+                            <div class="text-center border-2 border-gray-200 dark:border-slate-700 rounded-xl py-3 peer-checked:border-primary peer-checked:bg-green-50 dark:peer-checked:bg-slate-700 transition">
+                                <i class="fa-solid fa-chalkboard-user text-xl text-gray-400 peer-checked:text-primary mb-1"></i>
+                                <div class="font-bold text-gray-700 dark:text-gray-300">مدرس</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="relative">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">الاسم الأول <span class="text-red-500">*</span></label>
+                            <input type="text" name="firstname" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary transition" placeholder="أحمد">
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                        </div>
+                        <div class="relative">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">الاسم الأخير <span class="text-red-500">*</span></label>
+                            <input type="text" name="lastname" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary transition" placeholder="محمود">
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                        </div>
+                    </div>
+                    <div class="mb-4 relative">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">رقم الهاتف <span class="text-red-500">*</span></label>
+                        <input type="tel" name="phone" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary transition text-left" dir="ltr" placeholder="01xxxxxxxxx">
+                        <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                    </div>
+                    <div class="mb-4 relative">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">البريد الإلكتروني <span class="text-red-500">*</span></label>
+                        <input type="email" name="email" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary transition" placeholder="example@mail.com">
+                        <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                    </div>
+                    <div class="mb-4 relative">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">كلمة المرور <span class="text-red-500">*</span></label>
+                        <input type="password" name="password" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary transition" placeholder="••••••••">
+                        <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                    </div>
+                    <button type="button" id="next-step-btn" class="w-full bg-primary text-white rounded-xl py-3.5 font-bold hover:bg-primaryHover transition mt-2 flex justify-center items-center gap-2">التالي <i class="fa-solid fa-arrow-left text-sm"></i></button>
+                    
+                    <div class="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">
+                        لديك حساب بالفعل؟ <a href="#" class="text-primary font-bold hover:underline close-modal trigger-login">تسجيل الدخول</a>
+                    </div>
+                </div>
+
+                <!-- Step 2: Parent Info -->
+                <div id="signup-step-parent" class="hidden">
+                    <div class="mb-6 flex justify-between items-center">
+                        <h4 class="font-bold text-lg text-primary border-b-2 border-primary inline-block pb-1">معلومات إضافية</h4>
+                        <button type="button" id="prev-step-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition text-sm font-bold"><i class="fa-solid fa-arrow-right ml-1"></i> رجوع</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="relative" id="reg-gov-container">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">المحافظة <span class="text-red-500">*</span></label>
+                            <div class="relative group">
+                                <input type="text" id="reg-gov-input" name="governorate" placeholder="اختر المحافظة" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 pr-4 pl-10 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition cursor-pointer group-hover:border-primary/50 shadow-sm" readonly>
+                                <i class="fa-solid fa-chevron-down absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs transition-transform duration-200"></i>
+                            </div>
+                            <!-- Searchable Dropdown for Governorate -->
+                            <div class="custom-dropdown hidden absolute top-full right-0 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] z-50 overflow-hidden transform origin-top transition-all duration-200 scale-95 opacity-0">
+                                <div class="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
+                                    <div class="relative">
+                                        <input type="text" id="reg-gov-search" placeholder="ابحث عن محافظة..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-primary transition">
+                                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                    </div>
+                                </div>
+                                <ul class="py-2 max-h-48 overflow-y-auto no-scrollbar" id="reg-gov-list"></ul>
+                            </div>
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                        </div>
+                        <div class="relative">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">المنطقة <span class="text-red-500">*</span></label>
+                            <input type="text" name="region" placeholder="أدخل المنطقة" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition hover:border-primary/50 shadow-sm">
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-slate-700/30 rounded-2xl p-4 mb-4 border border-gray-100 dark:border-slate-700 transition duration-300 shadow-sm hover:shadow-md hover:border-primary/30">
+                        <div class="flex items-center gap-2 text-primary mb-3">
+                            <i class="fa-regular fa-face-smile"></i>
+                            <h5 class="font-bold text-sm">بيانات الطفل</h5>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div class="relative">
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">عمر الطفل</label>
+                                <input type="number" name="child_age" placeholder="بالسنوات" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition hover:border-primary/50 shadow-sm text-left" dir="auto">
+                            </div>
+                            <div class="relative" id="reg-stage-container">
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">المرحلة التعليمية <span class="text-red-500">*</span></label>
+                                <div class="relative group">
+                                    <input type="text" id="reg-stage-input" name="educational_stage" placeholder="اختر المرحلة" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-3 py-2.5 pr-3 pl-8 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition cursor-pointer group-hover:border-primary/50 shadow-sm" readonly>
+                                    <i class="fa-solid fa-chevron-down absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs transition-transform duration-200"></i>
+                                </div>
+                                <div class="custom-dropdown hidden absolute top-full right-0 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] z-50 overflow-hidden transform origin-top transition-all duration-200 scale-95 opacity-0">
+                                    <ul class="py-2 max-h-40 overflow-y-auto no-scrollbar" id="reg-stage-list"></ul>
+                                </div>
+                                <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">اهتمامات الطفل (اختياري)</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" class="interest-btn border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 rounded-full px-4 py-1 text-xs font-bold hover:border-primary hover:text-primary transition">الرياضيات</button>
+                                <button type="button" class="interest-btn border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 rounded-full px-4 py-1 text-xs font-bold hover:border-primary hover:text-primary transition">العلوم</button>
+                                <button type="button" class="interest-btn border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 rounded-full px-4 py-1 text-xs font-bold hover:border-primary hover:text-primary transition">الفنون</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-primary text-white rounded-xl py-3.5 font-bold hover:bg-primaryHover transition mt-2">إنهاء وإنشاء الحساب</button>
+                </div>
+
+                <!-- Step 3: Tutor Info -->
+                <div id="signup-step-tutor" class="hidden">
+                    <div class="mb-6 flex justify-between items-center">
+                        <h4 class="font-bold text-lg text-primary border-b-2 border-primary inline-block pb-1">معلومات المعلم</h4>
+                        <button type="button" id="prev-step-tutor-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition text-sm font-bold"><i class="fa-solid fa-arrow-right ml-1"></i> رجوع</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="relative" id="tutor-gov-container">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">المحافظة <span class="text-red-500">*</span></label>
+                            <div class="relative group">
+                                <input type="text" id="tutor-gov-input" name="tutor_governorate" placeholder="اختر المحافظة" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 pr-4 pl-10 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition cursor-pointer group-hover:border-primary/50 shadow-sm" readonly>
+                                <i class="fa-solid fa-chevron-down absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs transition-transform duration-200"></i>
+                            </div>
+                            <div class="custom-dropdown hidden absolute top-full right-0 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] z-50 overflow-hidden transform origin-top transition-all duration-200 scale-95 opacity-0">
+                                <div class="p-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
+                                    <div class="relative">
+                                        <input type="text" id="tutor-gov-search" placeholder="ابحث..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-primary transition">
+                                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                    </div>
+                                </div>
+                                <ul class="py-2 max-h-40 overflow-y-auto no-scrollbar" id="tutor-gov-list"></ul>
+                            </div>
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                        </div>
+                        <div class="relative">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">المنطقة <span class="text-red-500">*</span></label>
+                            <input type="text" name="tutor_region" placeholder="أدخل المنطقة" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition hover:border-primary/50 shadow-sm">
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="relative" id="tutor-sub-container">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">المادة <span class="text-red-500">*</span></label>
+                            <div class="relative group">
+                                <input type="text" id="tutor-sub-input" name="tutor_subject" placeholder="اختر المادة" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 pr-4 pl-10 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition cursor-pointer group-hover:border-primary/50 shadow-sm" readonly>
+                                <i class="fa-solid fa-chevron-down absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs transition-transform duration-200"></i>
+                            </div>
+                            <div class="custom-dropdown hidden absolute top-full right-0 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] z-50 overflow-hidden transform origin-top transition-all duration-200 scale-95 opacity-0">
+                                <ul class="py-2 max-h-40 overflow-y-auto no-scrollbar" id="tutor-sub-list"></ul>
+                            </div>
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">هذا الحقل مطلوب</span>
+                        </div>
+                        <div class="relative">
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">الخبرة <span class="text-red-500">*</span></label>
+                            <input type="number" name="tutor_experience" placeholder="السنوات" class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition hover:border-primary/50 shadow-sm text-left" dir="auto">
+                            <span class="text-red-400 text-xs hidden error-msg mt-1">مطلوب</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 relative group-checkbox">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">المراحل التي تدرسها <span class="text-red-500">*</span></label>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="tutor_stages" value="KG" class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary">
+                                <span class="text-sm font-bold text-gray-600 dark:text-gray-300">رياض أطفال</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="tutor_stages" value="Primary" class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary">
+                                <span class="text-sm font-bold text-gray-600 dark:text-gray-300">ابتدائي</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="tutor_stages" value="Preparatory" class="w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary">
+                                <span class="text-sm font-bold text-gray-600 dark:text-gray-300">إعدادي</span>
+                            </label>
+                        </div>
+                        <span class="text-red-400 text-xs hidden error-msg mt-1">يجب اختيار مرحلة واحدة على الأقل</span>
+                    </div>
+
+                    <div class="mb-5 relative">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">نبذة مختصرة <span class="text-gray-400 font-normal text-xs">(اختياري)</span></label>
+                        <textarea name="tutor_bio" rows="2" placeholder="اكتب نبذة عن طريقتك في التدريس..." class="w-full border border-gray-200 dark:border-slate-700 dark:bg-slate-900 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition hover:border-primary/50 shadow-sm resize-none"></textarea>
+                    </div>
+
+                    <button type="button" id="next-step-tutor-specs-btn" class="w-full bg-primary text-white rounded-xl py-3.5 font-bold hover:bg-primaryHover transition mt-2 flex justify-center items-center gap-2">التالي <i class="fa-solid fa-arrow-left text-sm"></i></button>
+                </div>
+
+                <!-- Step 4: Tutor Specializations -->
+                <div id="signup-step-tutor-specs" class="hidden">
+                    <div class="mb-5 flex justify-between items-center">
+                        <h4 class="font-bold text-lg text-primary border-b-2 border-primary inline-block pb-1">اختيار التخصصات</h4>
+                        <button type="button" id="prev-step-tutor-specs-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition text-sm font-bold"><i class="fa-solid fa-arrow-right ml-1"></i> رجوع</button>
+                    </div>
+
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-6">اختر جميع التخصصات التي ترغب في تدريسها أو تقديم الدعم فيها.</p>
+
+                    <!-- Foundation -->
+                    <div class="mb-5">
+                        <h5 class="font-bold text-sm text-gray-900 dark:text-gray-200 mb-3 flex items-center gap-2"><i class="fa-solid fa-book-open text-primary text-xs"></i> تأسيس (Foundation)</h5>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="تأسيس عربي" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">تأسيس عربي</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="تأسيس إنجليزي" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">تأسيس إنجليزي</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="تأسيس رياضيات" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">تأسيس رياضيات</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Phonics" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Phonics</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Preschool Preparation" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Preschool Preparation</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Language & Skills -->
+                    <div class="mb-5">
+                        <h5 class="font-bold text-sm text-gray-900 dark:text-gray-200 mb-3 flex items-center gap-2"><i class="fa-solid fa-language text-primary text-xs"></i> لغات ومهارات (Language & Skills)</h5>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Arabic Language" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Arabic Language</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Quran for Kids" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Quran for Kids</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Reading Skills" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Reading Skills</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Writing Skills" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Writing Skills</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Handwriting Improvement" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Handwriting Improvement</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="English for Kids" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">English for Kids</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Support -->
+                    <div class="mb-5">
+                        <h5 class="font-bold text-sm text-gray-900 dark:text-gray-200 mb-3 flex items-center gap-2"><i class="fa-solid fa-hands-holding-child text-primary text-xs"></i> دعم دراسي (Support)</h5>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Learning Support" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Learning Support</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Homework Assistance" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Homework Assistance</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" name="tutor_specs" value="Study Skills" class="peer sr-only">
+                                <div class="px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 text-xs font-bold hover:border-primary hover:text-primary peer-checked:bg-green-50 dark:peer-checked:bg-primary/10 peer-checked:border-primary peer-checked:text-primary transition-all text-gray-600 dark:text-gray-300">Study Skills</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <span class="text-red-400 text-xs hidden error-msg mt-1" id="tutor-specs-error">يجب اختيار تخصص واحد على الأقل</span>
+
+                    <button type="submit" class="w-full bg-primary text-white rounded-xl py-3.5 font-bold hover:bg-primaryHover transition mt-4">إنهاء وإنشاء حساب المعلم</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tutor Profile Modal -->
+    <div id="profile-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40 modal-backdrop"></div>
+        <div class="relative bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar">
+            <!-- Cover -->
+            <div class="h-32 bg-gradient-to-r from-primary to-green-300 relative">
+                <button class="absolute top-4 left-4 w-8 h-8 bg-white/20 hover:bg-white/40 rounded-full text-white flex items-center justify-center backdrop-blur-sm transition close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="px-8 pb-8">
+                <!-- Avatar & Header -->
+                <div class="flex flex-col sm:flex-row gap-6 items-center sm:items-end -mt-12 mb-6">
+                    <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80" alt="Tutor" class="w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 object-cover shadow-md bg-white">
+                    <div class="flex-1 text-center sm:text-right">
+                        <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white">أ. أحمد محمود</h2>
+                        <div class="text-gray-500 dark:text-gray-400 text-sm font-medium mt-1">مدرس لغة عربية - تأسيس ابتدائي</div>
+                    </div>
+                    <div class="flex flex-col items-center sm:items-end">
+                        <div class="flex items-center gap-1 text-orange-400 font-bold text-lg">
+                            4.9 <i class="fa-solid fa-star text-sm"></i>
+                        </div>
+                        <span class="text-xs text-gray-400">(120 تقييم)</span>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-3 text-center">
+                        <div class="text-gray-400 text-xs mb-1">سعر الحصة</div>
+                        <div class="font-bold text-gray-800 dark:text-gray-200 text-sm">150 ج.م</div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-3 text-center">
+                        <div class="text-gray-400 text-xs mb-1">الخبرة</div>
+                        <div class="font-bold text-gray-800 dark:text-gray-200 text-sm">+7 سنوات</div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-3 text-center">
+                        <div class="text-gray-400 text-xs mb-1">الموقع</div>
+                        <div class="font-bold text-gray-800 dark:text-gray-200 text-sm">القاهرة، المعادي</div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-3 text-center">
+                        <div class="text-gray-400 text-xs mb-1">طرق التدريس</div>
+                        <div class="font-bold text-gray-800 dark:text-gray-200 text-sm">أونلاين / منزل</div>
+                    </div>
+                </div>
+
+                <!-- About -->
+                <div class="mb-8">
+                    <h3 class="font-bold text-lg text-gray-800 dark:text-white mb-2">نبذة عن المدرس</h3>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                        مدرس متخصص في تأسيس اللغة العربية والتربية الإسلامية للأطفال من سن 5 سنوات إلى 12 سنة. أعتمد على طرق تدريس تفاعلية حديثة تربط التعليم باللعب وتجعل الطفل يحب التعلم. حاصل على دبلوم تربوي من جامعة القاهرة.
+                    </p>
+                </div>
+
+                <!-- Action -->
+                <button class="w-full bg-primary text-white rounded-xl py-4 font-bold text-lg hover:bg-primaryHover transition flex items-center justify-center gap-3 shadow-lg shadow-primary/20">
+                    <i class="fa-regular fa-calendar-check"></i> احجز حصة تجريبية الآن
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

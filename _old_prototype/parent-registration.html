@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معلومات ولي الأمر - نبني</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #faf9f6; /* Light warm background matching the image */
+        }
+        
+        /* Custom styles for specific elements */
+        .child-section-bg {
+            background-color: #f4f7f8;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#007042',    /* Dark green brand color */
+                        primaryHover: '#005a35',
+                        textDark: '#111827',
+                        textMuted: '#6b7280',
+                        accentGold: '#a67c00'  /* Gold/brownish color for child section title */
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col relative">
+
+    <header class="absolute top-0 w-full flex justify-between items-center px-6 lg:px-12 py-6 z-10" dir="ltr">
+        <div class="text-2xl font-extrabold text-primary flex items-center gap-1">
+            Nabni <span class="font-bold text-xl">(نبني)</span>
+        </div>
+        <a href="index.html" class="text-gray-500 hover:text-gray-800 transition">
+            <i class="fa-solid fa-xmark text-2xl"></i>
+        </a>
+    </header>
+
+    <main class="flex-grow flex items-center justify-center py-24 px-4 sm:px-6">
+        
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-6 sm:p-10 md:p-12">
+            
+            <div class="mb-10 w-full">
+                <div class="flex justify-between items-center text-xs font-bold mb-3">
+                    <span class="text-gray-800">الخطوة 3 من 8</span>
+                    <span class="text-gray-500">معلومات ولي الأمر</span>
+                </div>
+                <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden flex justify-start">
+                    <div class="h-full bg-primary rounded-full w-[37.5%]"></div>
+                </div>
+            </div>
+
+            <div class="text-center mb-10">
+                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">معلومات ولي الأمر</h1>
+                <p class="text-gray-600 text-sm font-medium">يرجى إدخال البيانات الخاصة بك وبطفلك لتخصيص التجربة.</p>
+            </div>
+
+            <form action="index.html" onsubmit="alert('تم إنشاء الحساب بنجاح!'); return true;">
+                
+                <div class="mb-10">
+                    <div class="mb-6">
+                        <h2 class="text-primary font-bold text-lg inline-block pb-1 border-b-[3px] border-primary">بيانات ولي الأمر</h2>
+                    </div>
+                    
+                    <div class="mb-5">
+                        <label class="block text-sm font-bold text-gray-900 mb-2">اسم ولي الأمر</label>
+                        <input type="text" placeholder="أدخل الاسم الكامل" required class="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder-gray-400">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-900 mb-2">المحافظة</label>
+                            <div class="relative">
+                                <input type="text" placeholder="اختر المحافظة" required class="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 pr-4 pl-10 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder-gray-400 cursor-pointer appearance-none">
+                                <i class="fa-solid fa-chevron-down absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-900 mb-2">المنطقة</label>
+                            <input type="text" placeholder="أدخل المنطقة أو الحي" required class="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder-gray-400">
+                        </div>
+                    </div>
+
+                    <div class="w-full md:w-1/2 md:pl-2.5">
+                        <label class="block text-sm font-bold text-gray-900 mb-2">
+                            عدد الأطفال <span class="text-gray-400 font-normal text-xs mr-1">(اختياري)</span>
+                        </label>
+                        <div class="relative">
+                            <input type="number" min="1" placeholder="مثال: 2" class="w-full bg-[#fafafa] border border-gray-200 rounded-xl pr-10 pl-4 py-3.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder-gray-400 text-left" dir="auto">
+                            <i class="fa-solid fa-user-group absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="child-section-bg border border-gray-100/80 rounded-[1.5rem] p-6 md:p-8 mb-10">
+                    
+                    <div class="flex items-center justify-center gap-2 text-accentGold mb-4">
+                        <h2 class="font-bold text-lg">بيانات الطفل</h2>
+                        <i class="fa-regular fa-face-smile text-xl"></i>
+                    </div>
+                    
+                    <hr class="border-gray-200/60 mb-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-900 mb-2">عمر الطفل</label>
+                            <input type="number" min="3" max="18" placeholder="بالسنوات" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder-gray-400 text-left" dir="auto">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-900 mb-2">المرحلة التعليمية</label>
+                            <div class="relative">
+                                <input type="text" placeholder="اختر المرحلة" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3.5 pr-4 pl-10 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder-gray-400 cursor-pointer">
+                                <i class="fa-solid fa-graduation-cap absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-900 mb-3">
+                            اهتمامات الطفل <span class="text-gray-400 font-normal text-xs mr-1">(اختياري)</span>
+                        </label>
+                        <div class="flex flex-wrap gap-2.5" id="interests-container">
+                            <button type="button" class="interest-btn bg-white border border-gray-200 text-gray-700 rounded-full px-6 py-2 text-sm font-semibold hover:border-primary hover:text-primary transition-colors">الرياضيات</button>
+                            <button type="button" class="interest-btn bg-white border border-gray-200 text-gray-700 rounded-full px-6 py-2 text-sm font-semibold hover:border-primary hover:text-primary transition-colors">العلوم</button>
+                            <button type="button" class="interest-btn bg-white border border-gray-200 text-gray-700 rounded-full px-6 py-2 text-sm font-semibold hover:border-primary hover:text-primary transition-colors">الفنون</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-primary text-white rounded-full py-4 text-base font-bold flex items-center justify-center gap-3 hover:bg-primaryHover transition-colors shadow-md shadow-primary/20">
+                    إنشاء الحساب
+                    <i class="fa-solid fa-arrow-left mt-0.5"></i>
+                </button>
+
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // Simple script to handle interest buttons toggling
+        document.querySelectorAll('.interest-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.classList.toggle('bg-primary');
+                this.classList.toggle('text-white');
+                this.classList.toggle('border-primary');
+                this.classList.toggle('bg-white');
+                this.classList.toggle('text-gray-700');
+                this.classList.toggle('border-gray-200');
+            });
+        });
+    </script>
+</body>
+</html>

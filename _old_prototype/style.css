@@ -1,0 +1,66 @@
+body {
+    font-family: 'Cairo', sans-serif;
+}
+
+/* Custom curved underline for the hero section */
+.curved-underline {
+    position: relative;
+    display: inline-block;
+}
+.curved-underline::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 12px;
+    bottom: -5px;
+    left: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q 50 20 100 10' stroke='%2322c55e' stroke-width='4' fill='transparent'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    z-index: -1;
+}
+
+/* Hide scrollbar for clean horizontal scrolls if needed on mobile */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Custom Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.4s ease-out forwards;
+}
+
+.modal-backdrop {
+    backdrop-filter: blur(5px);
+}
+
+.glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Dark mode tweaks */
+.dark .glass-panel {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .curved-underline::after {
+    filter: brightness(1.2);
+}
