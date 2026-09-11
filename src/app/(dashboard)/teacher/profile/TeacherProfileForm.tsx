@@ -90,9 +90,9 @@ export default function TeacherProfileForm({ userId }: TeacherProfileFormProps) 
           bio,
           years_experience: Number(experience),
           teaching_methods: methods,
-          subjects_taught: selectedSubjects.map(id => parseInt(id)),
           areas_covered: areas.split(',').map(s => s.trim())
-        }
+        },
+        selectedSubjects.map(id => parseInt(id))
       );
       router.push('/teacher');
       router.refresh();

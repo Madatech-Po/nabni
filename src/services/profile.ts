@@ -11,7 +11,6 @@ export interface TeacherDetailsUpdateData {
   bio: string;
   years_experience: number;
   teaching_methods: string[];
-  subjects_taught: number[];
   areas_covered: string[];
 }
 
@@ -25,15 +24,20 @@ export async function updateParentProfile(userId: string, data: ProfileUpdateDat
   if (error) throw error;
 }
 
-export async function updateTeacherProfile(userId: string, profileData: ProfileUpdateData, detailsData: TeacherDetailsUpdateData) {
+export async function updateTeacherProfile(
+  userId: string,
+  profileData: ProfileUpdateData,
+  detailsData: TeacherDetailsUpdateData,
+  subjectIds: number[]
+) {
   const supabase = createClient();
-  
+
   // Update base profile
   const { error: profileError } = await supabase
     .from('profiles')
     .update(profileData)
     .eq('id', userId);
-    
+
   if (profileError) throw profileError;
 
   // Upsert teacher details
@@ -45,6 +49,27 @@ export async function updateTeacherProfile(userId: string, profileData: ProfileU
     });
 
   if (detailsError) throw detailsError;
+
+  await updateEducatorServices(userId, subjectIds);
+}
+
+export async function updateEducatorServices(educatorId: string, subjectIds: number[]) {
+  const supabase = createClient();
+
+  const { error: deleteError } = await supabase
+    .from('educator_services')
+    .delete()
+    .eq('educator_id', educatorId);
+
+  if (deleteError) throw deleteError;
+
+  if (subjectIds.length === 0) return;
+
+  const { error: insertError } = await supabase
+    .from('educator_services')
+    .insert(subjectIds.map((subject_id) => ({ educator_id: educatorId, subject_id })));
+
+  if (insertError) throw insertError;
 }
 
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
