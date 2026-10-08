@@ -16,6 +16,11 @@
  * -> Connection string -> "Session pooler" (the direct db.<ref>.supabase.co host is
  * IPv6-only and will fail to resolve on IPv4-only networks).
  *
+ * TLS certificates are always verified. Supabase signs its certs with its own root CA,
+ * so download it from Dashboard -> Project Settings -> Database -> SSL Configuration
+ * and point SUPABASE_DB_CA_CERT at the file:
+ *   SUPABASE_DB_CA_CERT=./prod-ca-2021.crt SUPABASE_DB_URL=... node scripts/db/introspect-schema.js
+ *
  * Never commit a connection string. Pass it via env var only.
  */
 
@@ -102,7 +107,9 @@ function buildQueries(schema) {
     process.exit(1);
   }
 
-  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  const caPath = process.env.SUPABASE_DB_CA_CERT;
+  const ssl = caPath ? { ca: require('fs').readFileSync(caPath, 'utf8') } : true;
+  const client = new Client({ connectionString, ssl });
   await client.connect();
 
   const queries = buildQueries(args.schema);
