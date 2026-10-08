@@ -1,5 +1,6 @@
 import { Container, Typography, Grid, Box } from '@mui/material';
 import Image from 'next/image';
+import { parsePositiveIntId } from '@/utils/searchParams';
 import { getOpenRequests } from '@/services/requests';
 import RequestFilters from '@/components/requests/RequestFilters';
 import RequestCard from '@/components/requests/RequestCard';
@@ -10,8 +11,8 @@ export default async function RequestsPage({
   searchParams: { subject?: string; governorate?: string };
 }) {
   const requests = await getOpenRequests({
-    subjectId: searchParams.subject ? Number(searchParams.subject) : undefined,
-    governorateId: searchParams.governorate ? Number(searchParams.governorate) : undefined,
+    subjectId: parsePositiveIntId(searchParams.subject),
+    governorateId: parsePositiveIntId(searchParams.governorate),
   });
 
   return (

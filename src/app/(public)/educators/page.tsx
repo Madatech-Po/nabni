@@ -1,5 +1,6 @@
 import { Container, Typography, Grid, Box } from '@mui/material';
 import Image from 'next/image';
+import { parsePositiveIntId } from '@/utils/searchParams';
 import { getTutors } from '@/services/tutors';
 import TutorFilters from '@/components/educators/TutorFilters';
 import TutorCard from '@/components/educators/TutorCard';
@@ -10,8 +11,8 @@ export default async function EducatorsPage({
   searchParams: { subject?: string; governorate?: string };
 }) {
   const tutors = await getTutors({
-    subjectId: searchParams.subject ? Number(searchParams.subject) : undefined,
-    governorateId: searchParams.governorate ? Number(searchParams.governorate) : undefined,
+    subjectId: parsePositiveIntId(searchParams.subject),
+    governorateId: parsePositiveIntId(searchParams.governorate),
   });
 
   return (
