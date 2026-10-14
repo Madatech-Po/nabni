@@ -37,7 +37,7 @@ CREATE TYPE public.educator_verification_status AS ENUM ('pending', 'approved', 
 -- Lookup tables
 -- ==========================================
 CREATE TABLE public.governorates (
-  id smallint PRIMARY KEY,
+  id smallint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name_ar text NOT NULL UNIQUE,
   name_en text NOT NULL UNIQUE,
   is_active boolean NOT NULL DEFAULT true,
@@ -46,7 +46,7 @@ CREATE TABLE public.governorates (
 COMMENT ON TABLE public.governorates IS 'Lookup table containing all Egyptian governorates.';
 
 CREATE TABLE public.cities (
-  id integer PRIMARY KEY,
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   governorate_id smallint NOT NULL REFERENCES public.governorates(id) ON UPDATE CASCADE ON DELETE RESTRICT,
   name_ar text NOT NULL,
   name_en text NOT NULL,
@@ -58,7 +58,7 @@ COMMENT ON TABLE public.cities IS 'Lookup table containing Egyptian cities group
 CREATE INDEX idx_cities_governorate ON public.cities (governorate_id);
 
 CREATE TABLE public.service_categories (
-  id smallint PRIMARY KEY,
+  id smallint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name_ar text NOT NULL UNIQUE,
   name_en text NOT NULL UNIQUE,
   slug text NOT NULL UNIQUE,
@@ -74,7 +74,7 @@ COMMENT ON TABLE public.service_categories IS 'Lookup table containing all educa
 CREATE INDEX idx_service_categories_display_order ON public.service_categories (display_order);
 
 CREATE TABLE public.education_levels (
-  id smallint PRIMARY KEY,
+  id smallint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name_ar text NOT NULL UNIQUE,
   name_en text NOT NULL UNIQUE,
   min_age smallint NOT NULL,
@@ -88,7 +88,7 @@ COMMENT ON TABLE public.education_levels IS 'Lookup table containing educational
 CREATE INDEX idx_education_levels_display_order ON public.education_levels (display_order);
 
 CREATE TABLE public.teaching_places (
-  id smallint PRIMARY KEY,
+  id smallint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name_ar text NOT NULL UNIQUE,
   name_en text NOT NULL UNIQUE,
   icon text,
@@ -100,7 +100,7 @@ COMMENT ON TABLE public.teaching_places IS 'Lookup table containing available te
 CREATE INDEX idx_teaching_places_display_order ON public.teaching_places (display_order);
 
 CREATE TABLE public.pricing_units (
-  id smallint PRIMARY KEY,
+  id smallint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name_ar text NOT NULL UNIQUE,
   name_en text NOT NULL UNIQUE,
   display_order smallint NOT NULL DEFAULT 0,
@@ -110,7 +110,7 @@ CREATE TABLE public.pricing_units (
 COMMENT ON TABLE public.pricing_units IS 'Lookup table for educator pricing units.';
 
 CREATE TABLE public.verification_statuses (
-  id smallint PRIMARY KEY,
+  id smallint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   code text NOT NULL UNIQUE,
   name_ar text NOT NULL,
   name_en text NOT NULL,
