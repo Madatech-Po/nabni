@@ -1,6 +1,10 @@
 -- Migration: 004_seed_lookups.sql
--- Description: NAB-26. Seed the lookup tables, which were all empty. Cities are left for later.
+-- Description: NAB-26. Seed the lookup tables. Cities are left for later.
 -- ON CONFLICT DO NOTHING keeps the seed safe to re-run.
+--
+-- NOTE: written on the wrong assumption that the tables were empty. They already held seed
+-- data from 2026-08-07, so this added duplicates in four tables; 007_remove_duplicate_seed_rows
+-- removes them. Keep this file only as a record of what was applied.
 
 INSERT INTO public.governorates (name_ar, name_en) VALUES
   ('القاهرة', 'Cairo'),
