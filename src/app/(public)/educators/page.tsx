@@ -1,7 +1,7 @@
 import { Container, Typography, Grid, Box } from '@mui/material';
 import Image from 'next/image';
 import { parsePositiveIntId } from '@/utils/searchParams';
-import { getTutors } from '@/services/tutors';
+import { getEducators } from '@/services/tutors';
 import TutorFilters from '@/components/educators/TutorFilters';
 import TutorCard from '@/components/educators/TutorCard';
 
@@ -10,8 +10,8 @@ export default async function EducatorsPage({
 }: {
   searchParams: { subject?: string; governorate?: string };
 }) {
-  const tutors = await getTutors({
-    subjectId: parsePositiveIntId(searchParams.subject),
+  const tutors = await getEducators({
+    serviceCategoryId: parsePositiveIntId(searchParams.subject),
     governorateId: parsePositiveIntId(searchParams.governorate),
   });
 
@@ -21,7 +21,7 @@ export default async function EducatorsPage({
         تصفح المعلمين
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        تصفح قائمة المعلمين المعتمدين وابحث بالمادة أو المحافظة.
+        تصفح قائمة المعلمين المعتمدين وابحث بالخدمة أو المحافظة.
       </Typography>
 
       <TutorFilters />

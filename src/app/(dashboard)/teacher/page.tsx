@@ -10,11 +10,11 @@ export default async function TeacherDashboard() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_profile_complete')
+    .select('onboarding_completed')
     .eq('id', user.id)
     .single();
 
-  if (!profile?.is_profile_complete) {
+  if (!profile?.onboarding_completed) {
     redirect('/teacher/profile');
   }
 

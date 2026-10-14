@@ -1,73 +1,46 @@
 import { createClient } from '@/utils/supabase/server';
+import type { Tables } from '@/types/database';
 
-export interface TutorSubject {
-  id: number;
-  name: string;
-  level: string;
-}
+export type EducatorDirectoryItem = Tables<'educator_directory'> & {
+  subjects: { id: number; name_ar: string }[];
+};
 
-export interface TutorDirectoryItem {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  governorate_name: string | null;
-  area: string | null;
-  bio: string | null;
-  years_experience: number | null;
-  teaching_methods: string[] | null;
-  subjects: TutorSubject[];
-}
-
-export interface TutorFilters {
-  subjectId?: number;
+export interface EducatorFilters {
+  serviceCategoryId?: number;
   governorateId?: number;
 }
 
-export async function getTutors(filters: TutorFilters = {}): Promise<TutorDirectoryItem[]> {
+export async function getEducators(filters: EducatorFilters = {}): Promise<EducatorDirectoryItem[]> {
   const supabase = createClient();
 
-  let educatorIdsForSubject: string[] | null = null;
-  if (filters.subjectId) {
-    const { data, error } = await supabase
-      .from('educator_services')
-      .select('educator_id')
-      .eq('subject_id', filters.subjectId);
-    if (error) throw error;
-    educatorIdsForSubject = (data || []).map((row) => row.educator_id);
-    if (educatorIdsForSubject.length === 0) return [];
+  let query = supabase
+    .from('educator_directory')
+    .select('*')
+    .order('experience_years', { ascending: false, nullsFirst: false });
+
+  if (filters.serviceCategoryId) {
+    query = query.contains('subject_ids', [filters.serviceCategoryId]);
   }
-
-  let query = supabase.from('tutor_directory').select('*').order('years_experience', { ascending: false });
-
   if (filters.governorateId) {
-    query = query.eq('governorate_id', filters.governorateId);
-  }
-  if (educatorIdsForSubject) {
-    query = query.in('id', educatorIdsForSubject);
-  }
-
-  const { data: tutors, error: tutorsError } = await query;
-  if (tutorsError) throw tutorsError;
-  if (!tutors || tutors.length === 0) return [];
-
-  const tutorIds = tutors.map((t) => t.id);
-  const { data: services, error: servicesError } = await supabase
-    .from('educator_services')
-    .select('educator_id, subject:subjects(id, name, level)')
-    .in('educator_id', tutorIds);
-  if (servicesError) throw servicesError;
-
-  const subjectsByEducator = new Map<string, TutorSubject[]>();
-  for (const row of services || []) {
-    const subject = row.subject as unknown as TutorSubject | null;
-    if (!subject) continue;
-    const list = subjectsByEducator.get(row.educator_id) || [];
-    list.push(subject);
-    subjectsByEducator.set(row.educator_id, list);
+    // An educator matches if they live in the governorate or list it as a teaching location.
+    query = query.or(
+      `governorate_id.eq.${filters.governorateId},location_governorate_ids.cs.{${filters.governorateId}}`
+    );
   }
 
-  return tutors.map((t) => ({
-    ...t,
-    subjects: subjectsByEducator.get(t.id) || [],
+  const [{ data: educators, error }, { data: categories, error: categoriesError }] = await Promise.all([
+    query,
+    supabase.from('service_categories').select('id, name_ar'),
+  ]);
+  if (error) throw error;
+  if (categoriesError) throw categoriesError;
+
+  const categoryById = new Map((categories || []).map((c) => [c.id, c]));
+
+  return (educators || []).map((educator) => ({
+    ...educator,
+    subjects: educator.subject_ids
+      .map((id) => categoryById.get(id))
+      .filter((c): c is { id: number; name_ar: string } => Boolean(c)),
   }));
 }

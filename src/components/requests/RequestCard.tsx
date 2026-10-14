@@ -1,18 +1,12 @@
 import { Card, CardContent, Typography, Box, Chip, Stack } from '@mui/material';
-import { MapPin, User, Video, Home, DollarSign, Clock } from 'lucide-react';
+import { MapPin, User, Home, DollarSign, Clock, GraduationCap } from 'lucide-react';
 import type { RequestFeedItem } from '@/services/requests';
 
-const METHOD_LABELS: Record<RequestFeedItem['preferred_teaching_method'], string> = {
-  online: 'أونلاين',
-  offline: 'حضوري',
-  both: 'حضوري أو أونلاين',
-};
-
-const GENDER_LABELS: Record<RequestFeedItem['preferred_teacher_gender'], string> = {
-  male: 'معلم',
-  female: 'معلمة',
-  any: 'لا يوجد تفضيل',
-};
+function genderLabel(gender: RequestFeedItem['preferred_educator_gender']): string {
+  if (gender === 'male') return 'معلم';
+  if (gender === 'female') return 'معلمة';
+  return 'لا يوجد تفضيل';
+}
 
 function timeAgo(isoDate: string): string {
   const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -31,32 +25,40 @@ export default function RequestCard({ request }: { request: RequestFeedItem }) {
       <CardContent sx={{ flexGrow: 1, p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Chip
-            label={request.subject ? `${request.subject.name} - ${request.subject.level}` : 'مادة غير محددة'}
+            label={request.service_category?.name_ar ?? 'خدمة غير محددة'}
             color="primary"
             sx={{ fontWeight: 'bold' }}
           />
-          <Chip label={GENDER_LABELS[request.preferred_teacher_gender]} size="small" variant="outlined" />
+          <Chip label={genderLabel(request.preferred_educator_gender)} size="small" variant="outlined" />
         </Box>
 
         <Stack spacing={1.5} mb={2}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
             <MapPin size={18} />
             <Typography variant="body2">
-              {request.governorate?.name} {request.area ? `- ${request.area}` : ''}
+              {request.governorate?.name_ar} {request.area ? `- ${request.area}` : ''}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
             <User size={18} />
             <Typography variant="body2">{request.student_age} سنوات</Typography>
           </Box>
+          {request.education_level && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+              <GraduationCap size={18} />
+              <Typography variant="body2">{request.education_level.name_ar}</Typography>
+            </Box>
+          )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-            {request.preferred_teaching_method === 'online' ? <Video size={18} /> : <Home size={18} />}
-            <Typography variant="body2">{METHOD_LABELS[request.preferred_teaching_method]}</Typography>
+            <Home size={18} />
+            <Typography variant="body2">{request.teaching_place?.name_ar}</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
             <DollarSign size={18} />
             <Typography variant="body2" color={!request.budget ? 'success.main' : 'inherit'}>
-              {request.budget ? `${request.budget} ج.م` : 'قابل للتفاوض'}
+              {request.budget
+                ? `${request.budget} ج.م${request.pricing_unit ? ` / ${request.pricing_unit.name_ar}` : ''}`
+                : 'قابل للتفاوض'}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>

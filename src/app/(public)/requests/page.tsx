@@ -11,7 +11,7 @@ export default async function RequestsPage({
   searchParams: { subject?: string; governorate?: string };
 }) {
   const requests = await getOpenRequests({
-    subjectId: parsePositiveIntId(searchParams.subject),
+    serviceCategoryId: parsePositiveIntId(searchParams.subject),
     governorateId: parsePositiveIntId(searchParams.governorate),
   });
 

@@ -28,8 +28,7 @@ export default function RegisterForm() {
       password,
       options: {
         data: {
-          first_name: firstName,
-          last_name: lastName,
+          full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
           role: role,
         },
       },
@@ -97,7 +96,7 @@ export default function RegisterForm() {
           disabled={loading}
         >
           <MenuItem value="parent">ولي أمر</MenuItem>
-          <MenuItem value="teacher">معلم</MenuItem>
+          <MenuItem value="educator">معلم</MenuItem>
         </Select>
       </FormControl>
       <Button variant="contained" size="large" type="submit" fullWidth sx={{ mt: 2 }} disabled={loading}>

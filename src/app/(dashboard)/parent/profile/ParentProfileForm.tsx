@@ -13,7 +13,7 @@ interface ParentProfileFormProps {
 export default function ParentProfileForm({ userId }: ParentProfileFormProps) {
   const [phone, setPhone] = useState('');
   const [governorateId, setGovernorateId] = useState<string>('');
-  const [area, setArea] = useState('');
+  const [city, setCity] = useState('');
   const [governorates, setGovernorates] = useState<Governorate[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,8 +49,7 @@ export default function ParentProfileForm({ userId }: ParentProfileFormProps) {
       await updateParentProfile(userId, {
         phone,
         governorate_id: parseInt(governorateId),
-        area,
-        is_profile_complete: true,
+        city,
       });
       router.push('/parent');
       router.refresh();
@@ -88,7 +87,7 @@ export default function ParentProfileForm({ userId }: ParentProfileFormProps) {
           onChange={(e: SelectChangeEvent) => setGovernorateId(e.target.value)}
         >
           {governorates.map((gov) => (
-            <MenuItem key={gov.id} value={gov.id.toString()}>{gov.name}</MenuItem>
+            <MenuItem key={gov.id} value={gov.id.toString()}>{gov.name_ar}</MenuItem>
           ))}
         </Select>
       </FormControl>
@@ -98,8 +97,8 @@ export default function ParentProfileForm({ userId }: ParentProfileFormProps) {
         variant="outlined"
         fullWidth
         required
-        value={area}
-        onChange={(e) => setArea(e.target.value)}
+        value={city}
+        onChange={(e) => setCity(e.target.value)}
         disabled={saving}
         placeholder="مثال: مدينة نصر، المعادي"
       />

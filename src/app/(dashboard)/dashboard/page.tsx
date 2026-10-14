@@ -13,11 +13,11 @@ export default async function DashboardPage() {
   // Fetch the user's role from the profile table
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, first_name')
+    .select('role')
     .eq('id', user.id)
     .single();
 
-  if (profile?.role === 'teacher') {
+  if (profile?.role === 'educator') {
     redirect('/teacher');
   } else if (profile?.role === 'parent') {
     redirect('/parent');

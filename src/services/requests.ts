@@ -1,20 +1,23 @@
 import { createClient } from '@/utils/supabase/server';
+import type { EducatorGender } from '@/types/database';
 
 export interface RequestFeedItem {
   id: string;
   student_age: number;
   description: string;
-  preferred_teacher_gender: 'male' | 'female' | 'any';
-  preferred_teaching_method: 'online' | 'offline' | 'both';
+  preferred_educator_gender: EducatorGender | null;
   budget: number | null;
-  area: string;
+  area: string | null;
   created_at: string;
-  subject: { name: string; level: string } | null;
-  governorate: { name: string } | null;
+  service_category: { name_ar: string } | null;
+  education_level: { name_ar: string } | null;
+  teaching_place: { name_ar: string } | null;
+  governorate: { name_ar: string } | null;
+  pricing_unit: { name_ar: string } | null;
 }
 
 export interface RequestFilters {
-  subjectId?: number;
+  serviceCategoryId?: number;
   governorateId?: number;
 }
 
@@ -24,13 +27,18 @@ export async function getOpenRequests(filters: RequestFilters = {}): Promise<Req
   let query = supabase
     .from('requests')
     .select(
-      'id, student_age, description, preferred_teacher_gender, preferred_teaching_method, budget, area, created_at, subject:subjects(name, level), governorate:governorates(name)'
+      `id, student_age, description, preferred_educator_gender, budget, area, created_at,
+       service_category:service_categories(name_ar),
+       education_level:education_levels(name_ar),
+       teaching_place:teaching_places(name_ar),
+       governorate:governorates(name_ar),
+       pricing_unit:pricing_units(name_ar)`
     )
     .eq('status', 'open')
     .order('created_at', { ascending: false });
 
-  if (filters.subjectId) {
-    query = query.eq('subject_id', filters.subjectId);
+  if (filters.serviceCategoryId) {
+    query = query.eq('service_category_id', filters.serviceCategoryId);
   }
   if (filters.governorateId) {
     query = query.eq('governorate_id', filters.governorateId);

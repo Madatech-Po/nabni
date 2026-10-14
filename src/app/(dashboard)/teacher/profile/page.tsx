@@ -11,6 +11,12 @@ export default async function TeacherProfilePage() {
     redirect('/login');
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single();
+
   return (
     <Container maxWidth="md" sx={{ mt: 8, mb: 8 }}>
       <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
@@ -21,7 +27,7 @@ export default async function TeacherProfilePage() {
           أكمل هذه البيانات لتظهر لأولياء الأمور المهتمين بالتأسيس في منطقتك.
         </Typography>
         
-        <TeacherProfileForm userId={user.id} />
+        <TeacherProfileForm userId={user.id} defaultFullName={profile?.full_name ?? ''} />
       </Paper>
     </Container>
   );

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Box, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, Button } from '@mui/material';
 import { X } from 'lucide-react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { getGovernorates, getSubjects, Governorate, Subject } from '@/services/lookups';
+import { getGovernorates, getServiceCategories, Governorate, ServiceCategory } from '@/services/lookups';
 
 export default function TutorFilters() {
   const router = useRouter();
@@ -12,13 +12,13 @@ export default function TutorFilters() {
   const searchParams = useSearchParams();
 
   const [governorates, setGovernorates] = useState<Governorate[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjects, setSubjects] = useState<ServiceCategory[]>([]);
 
   const currentSubject = searchParams.get('subject') || '';
   const currentGovernorate = searchParams.get('governorate') || '';
 
   useEffect(() => {
-    Promise.all([getGovernorates(), getSubjects()])
+    Promise.all([getGovernorates(), getServiceCategories()])
       .then(([govs, subs]) => {
         setGovernorates(govs);
         setSubjects(subs);
@@ -40,17 +40,17 @@ export default function TutorFilters() {
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 4 }}>
       <FormControl sx={{ minWidth: 220 }}>
-        <InputLabel id="subject-filter-label">المادة</InputLabel>
+        <InputLabel id="subject-filter-label">الخدمة</InputLabel>
         <Select
           labelId="subject-filter-label"
-          label="المادة"
+          label="الخدمة"
           value={currentSubject}
           onChange={(e: SelectChangeEvent) => updateParam('subject', e.target.value)}
         >
-          <MenuItem value="">كل المواد</MenuItem>
+          <MenuItem value="">كل الخدمات</MenuItem>
           {subjects.map((s) => (
             <MenuItem key={s.id} value={s.id.toString()}>
-              {s.name} - {s.level}
+              {s.name_ar}
             </MenuItem>
           ))}
         </Select>
@@ -67,7 +67,7 @@ export default function TutorFilters() {
           <MenuItem value="">كل المحافظات</MenuItem>
           {governorates.map((g) => (
             <MenuItem key={g.id} value={g.id.toString()}>
-              {g.name}
+              {g.name_ar}
             </MenuItem>
           ))}
         </Select>
