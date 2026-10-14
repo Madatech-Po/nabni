@@ -52,14 +52,14 @@ export async function updateEducatorProfile(
   let educatorId = existing?.id;
   if (educatorId) {
     const { error } = await supabase.from('educators').update(data).eq('id', educatorId);
-    if (error) throw error;
+    if (error) throw toEducatorSaveError(error);
   } else {
     const { data: created, error } = await supabase
       .from('educators')
       .insert({ ...data, user_id: userId })
       .select('id')
       .single();
-    if (error) throw error;
+    if (error) throw toEducatorSaveError(error);
     educatorId = created.id;
   }
 
@@ -84,7 +84,15 @@ export async function updateEducatorProfile(
   if (profileError) throw profileError;
 }
 
-type EducatorChildTable = 'educator_subjects' | 'educator_levels' | 'educator_locations';
+// educators.phone is unique; show a readable message instead of the raw constraint error.
+function toEducatorSaveError(error: { code?: string; message: string }): Error {
+  if (error.code === '23505' && error.message.includes('educators_phone_key')) {
+    return new Error('رقم الهاتف مسجّل بالفعل لحساب معلم آخر.');
+  }
+  return new Error(error.message);
+}
+
+type EducatorChildTable ='educator_subjects' | 'educator_levels' | 'educator_locations';
 
 async function replaceRows(
   table: EducatorChildTable,

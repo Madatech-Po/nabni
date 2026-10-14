@@ -37,6 +37,8 @@ export default function TeacherProfileForm({ userId, defaultFullName }: TeacherP
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [levelIds, setLevelIds] = useState<string[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  // Remember the last upload so retrying a failed save doesn't drop (or re-upload) the photo.
+  const [uploadedAvatar, setUploadedAvatar] = useState<{ file: File; url: string } | null>(null);
 
   const [governoratesList, setGovernoratesList] = useState<Governorate[]>([]);
   const [categoriesList, setCategoriesList] = useState<ServiceCategory[]>([]);
@@ -91,7 +93,11 @@ export default function TeacherProfileForm({ userId, defaultFullName }: TeacherP
     setError(null);
 
     try {
-      const profileImage = avatarFile ? await uploadAvatar(userId, avatarFile) : undefined;
+      let profileImage = uploadedAvatar?.url;
+      if (avatarFile && avatarFile !== uploadedAvatar?.file) {
+        profileImage = await uploadAvatar(userId, avatarFile);
+        setUploadedAvatar({ file: avatarFile, url: profileImage });
+      }
       // The home governorate always counts as a teaching location.
       const locations = Array.from(new Set([governorateId, ...locationIds]));
 
