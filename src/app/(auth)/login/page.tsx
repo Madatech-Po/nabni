@@ -1,4 +1,5 @@
 import { Container, Typography, Paper, Box } from '@mui/material';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import LoginForm from './LoginForm';
 
@@ -13,7 +14,10 @@ export default function LoginPage() {
           أهلاً بك مجدداً في منصة نبني
         </Typography>
         
-        <LoginForm />
+        {/* LoginForm reads ?redirectTo via useSearchParams, which needs a Suspense boundary to prerender. */}
+        <Suspense>
+          <LoginForm />
+        </Suspense>
         
         <Box mt={3}>
           <Typography variant="body2">

@@ -1,4 +1,5 @@
 import { Container, Typography, Paper, Box } from '@mui/material';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import RegisterForm from './RegisterForm';
 
@@ -13,7 +14,10 @@ export default function RegisterPage() {
           انضم إلينا كولي أمر أو معلم
         </Typography>
         
-        <RegisterForm />
+        {/* RegisterForm reads ?redirectTo via useSearchParams, which needs a Suspense boundary to prerender. */}
+        <Suspense>
+          <RegisterForm />
+        </Suspense>
         
         <Box mt={3}>
           <Typography variant="body2">
