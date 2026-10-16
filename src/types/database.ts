@@ -26,7 +26,7 @@ type Relationship = {
 };
 
 export type EducatorGender = 'male' | 'female';
-export type EducatorVerificationStatus = 'pending' | 'approved' | 'rejected';
+export type EducatorVerificationStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
 export type UserRole = 'parent' | 'educator' | 'admin';
 export type RequestStatus = 'open' | 'closed' | 'cancelled';
 
