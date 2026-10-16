@@ -3,6 +3,7 @@ import { Typography, Stack, Box } from '@mui/material';
 import { getEducatorsForReview, VERIFICATION_STATUSES } from '@/services/admin';
 import EducatorReviewFilters from '@/components/admin/EducatorReviewFilters';
 import EducatorReviewCard from '@/components/admin/EducatorReviewCard';
+import EducatorReviewActions from '@/components/admin/EducatorReviewActions';
 import type { EducatorVerificationStatus } from '@/types/database';
 
 export default async function AdminEducatorsPage({
@@ -38,7 +39,16 @@ export default async function AdminEducatorsPage({
       ) : (
         <Stack spacing={3}>
           {educators.map((educator) => (
-            <EducatorReviewCard key={educator.id} educator={educator} />
+            <EducatorReviewCard
+              key={educator.id}
+              educator={educator}
+              actions={
+                <EducatorReviewActions
+                  educatorId={educator.id}
+                  status={educator.verification_status ?? 'pending'}
+                />
+              }
+            />
           ))}
         </Stack>
       )}

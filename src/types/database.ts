@@ -208,7 +208,13 @@ export type Database = {
         Relationships: [];
       };
     };
-    Functions: { [_ in never]: never };
+    Functions: {
+      is_admin: { Args: Record<string, never>; Returns: boolean };
+      set_educator_verification: {
+        Args: { p_educator_id: string; p_status: EducatorVerificationStatus; p_reason?: string | null };
+        Returns: EducatorVerificationStatus;
+      };
+    };
     Enums: {
       educator_gender: EducatorGender;
       educator_verification_status: EducatorVerificationStatus;
