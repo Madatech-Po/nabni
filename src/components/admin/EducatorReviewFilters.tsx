@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, TextField, Button } from '@mui/material';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { STATUS_LABELS } from './verificationStatus';
@@ -15,7 +15,13 @@ export default function EducatorReviewFilters() {
 
   // No status param means the default "pending" queue; "all" shows every status.
   const currentStatus = searchParams.get('status') || 'pending';
-  const [q, setQ] = useState(searchParams.get('q') || '');
+  const urlQ = searchParams.get('q') || '';
+  const [q, setQ] = useState(urlQ);
+
+  // Keep the box in step with the applied search after back/forward navigation.
+  useEffect(() => {
+    setQ(urlQ);
+  }, [urlQ]);
 
   function push(updates: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
