@@ -62,7 +62,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   
   // Define exact protected prefixes
-  const protectedPrefixes = ['/dashboard', '/parent', '/teacher', '/requests/new', '/profile/edit'];
+  const protectedPrefixes = ['/dashboard', '/parent', '/teacher', '/admin', '/requests/new', '/profile/edit'];
   const isProtected = protectedPrefixes.some(prefix => pathname.startsWith(prefix)) || pathname.endsWith('/proposal');
 
   if (isProtected && !user) {
