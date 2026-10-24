@@ -60,3 +60,59 @@ export async function getEducatorsForReview(filters: AdminEducatorFilters = {}):
   if (error) throw error;
   return (data || []) as unknown as AdminEducatorItem[];
 }
+
+export const ADMIN_PAGE_SIZE = 20;
+
+export interface Paged<T> {
+  items: T[];
+  total: number;
+}
+
+// Zero-based inclusive row range for a 1-based page number from the URL.
+function pageRange(page: number | undefined): [number, number] {
+  const current = Number.isFinite(page) && page && page > 0 ? Math.floor(page) : 1;
+  const from = (current - 1) * ADMIN_PAGE_SIZE;
+  return [from, from + ADMIN_PAGE_SIZE - 1];
+}
+
+export interface AdminParentItem {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  governorate: { name_ar: string } | null;
+  requests: { count: number }[];
+}
+
+export interface AdminParentFilters {
+  active?: boolean;
+  q?: string;
+  page?: number;
+}
+
+export async function getParentsForAdmin(filters: AdminParentFilters = {}): Promise<Paged<AdminParentItem>> {
+  const supabase = createClient();
+
+  // Every profile is readable by admins ("Admins can view all profiles", NAB-51).
+  let query = supabase
+    .from('profiles')
+    .select('id, full_name, phone, is_active, created_at, governorate:governorates(name_ar), requests(count)', {
+      count: 'exact',
+    })
+    .eq('role', 'parent')
+    .order('created_at', { ascending: false });
+
+  if (filters.active !== undefined) {
+    query = query.eq('is_active', filters.active);
+  }
+
+  const q = filters.q ? sanitizeSearch(filters.q) : '';
+  if (q) {
+    query = query.or(`full_name.ilike.*${q}*,phone.ilike.*${q}*`);
+  }
+
+  const { data, error, count } = await query.range(...pageRange(filters.page));
+  if (error) throw error;
+  return { items: (data || []) as unknown as AdminParentItem[], total: count ?? 0 };
+}

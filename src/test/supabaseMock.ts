@@ -14,6 +14,8 @@ export interface RecordedQuery {
 export interface MockResult {
   data?: unknown;
   error?: { code?: string; message: string } | null;
+  /** Row count for queries made with `{ count: 'exact' }`. */
+  count?: number | null;
 }
 
 type Responder = (query: RecordedQuery) => MockResult | undefined;
@@ -43,7 +45,8 @@ export function createSupabaseMock(respond: Responder = () => undefined) {
     // Awaiting the builder runs the query.
     builder.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => {
       const result = respond(query) ?? {};
-      return Promise.resolve({ data: result.data ?? null, error: result.error ?? null }).then(resolve, reject);
+      return Promise.resolve({ data: result.data ?? null, error: result.error ?? null, count: result.count ?? null })
+        .then(resolve, reject);
     };
     return builder;
   }

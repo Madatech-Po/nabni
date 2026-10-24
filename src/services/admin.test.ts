@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { argsOf, createSupabaseMock, hasCall } from '@/test/supabaseMock';
+import { allArgsOf, argsOf, createSupabaseMock, hasCall } from '@/test/supabaseMock';
 
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { getEducatorsForReview } from './admin';
+import { ADMIN_PAGE_SIZE, getEducatorsForReview, getParentsForAdmin } from './admin';
 
 beforeEach(() => {
   mock = createSupabaseMock(() => ({ data: [{ id: 'e1' }] }));
@@ -69,5 +69,51 @@ describe('getEducatorsForReview', () => {
     mock = createSupabaseMock(() => ({ error: { message: 'permission denied' } }));
 
     await expect(getEducatorsForReview()).rejects.toMatchObject({ message: 'permission denied' });
+  });
+});
+
+describe('getParentsForAdmin', () => {
+  beforeEach(() => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'p1' }], count: 41 }));
+  });
+
+  it('lists parents newest first with the exact total and request counts', async () => {
+    const result = await getParentsForAdmin();
+
+    const [query] = mock.on('profiles');
+    expect(result).toEqual({ items: [{ id: 'p1' }], total: 41 });
+    expect(argsOf(query, 'eq')).toEqual(['role', 'parent']);
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    const [columns, options] = argsOf(query, 'select') as [string, unknown];
+    expect(columns).toContain('requests(count)');
+    expect(options).toEqual({ count: 'exact' });
+  });
+
+  it('pages through the list', async () => {
+    await getParentsForAdmin({ page: 3 });
+
+    expect(argsOf(mock.on('profiles')[0], 'range')).toEqual([2 * ADMIN_PAGE_SIZE, 3 * ADMIN_PAGE_SIZE - 1]);
+  });
+
+  it('treats invalid pages as the first page', async () => {
+    await getParentsForAdmin({ page: -2 });
+
+    expect(argsOf(mock.on('profiles')[0], 'range')).toEqual([0, ADMIN_PAGE_SIZE - 1]);
+  });
+
+  it('filters suspended accounts and searches with the cleaned term', async () => {
+    await getParentsForAdmin({ active: false, q: ' 010,( ' });
+
+    const [query] = mock.on('profiles');
+    expect(allArgsOf(query, 'eq')).toContainEqual(['is_active', false]);
+    expect(argsOf(query, 'or')).toEqual(['full_name.ilike.*010*,phone.ilike.*010*']);
+  });
+
+  it('reports a missing count as zero and rethrows errors', async () => {
+    mock = createSupabaseMock(() => ({ data: [] }));
+    expect(await getParentsForAdmin()).toEqual({ items: [], total: 0 });
+
+    mock = createSupabaseMock(() => ({ error: { message: 'boom' } }));
+    await expect(getParentsForAdmin()).rejects.toMatchObject({ message: 'boom' });
   });
 });
