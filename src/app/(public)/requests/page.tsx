@@ -1,4 +1,5 @@
-import { Container, Typography, Grid, Box } from '@mui/material';
+import { Container, Typography, Grid, Box, Button } from '@mui/material';
+import Link from 'next/link';
 import Image from 'next/image';
 import { parsePositiveIntId } from '@/utils/searchParams';
 import { getOpenRequests } from '@/services/requests';
@@ -20,9 +21,14 @@ export default async function RequestsPage({
       <Typography variant="h4" component="h1" gutterBottom color="primary" fontWeight="bold">
         طلبات أولياء الأمور
       </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        استعرض الطلبات المفتوحة من أولياء الأمور وقدم عرضك بعد تسجيل الدخول كمتخصص.
-      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', mb: 4 }}>
+        <Typography variant="body1" color="text.secondary">
+          استعرض الطلبات المفتوحة من أولياء الأمور وقدم عرضك بعد تسجيل الدخول كمتخصص.
+        </Typography>
+        <Button component={Link} href="/parent/requests/new" variant="contained">
+          ولي أمر؟ انشر طلبك
+        </Button>
+      </Box>
 
       <RequestFilters />
 

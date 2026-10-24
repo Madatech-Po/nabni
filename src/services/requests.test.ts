@@ -4,7 +4,7 @@ import { allArgsOf, argsOf, createSupabaseMock } from '@/test/supabaseMock';
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { getOpenRequests } from './requests';
+import { getMyRequestForEdit, getMyRequests, getOpenRequests } from './requests';
 
 beforeEach(() => {
   mock = createSupabaseMock(() => ({ data: [{ id: 'r1' }] }));
@@ -50,5 +50,44 @@ describe('getOpenRequests', () => {
     mock = createSupabaseMock(() => ({ error: { message: 'boom' } }));
 
     await expect(getOpenRequests()).rejects.toMatchObject({ message: 'boom' });
+  });
+});
+
+describe('getMyRequests', () => {
+  it("reads only the parent's own requests, every status, newest first", async () => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'r1', status: 'removed' }] }));
+
+    expect(await getMyRequests('p1')).toEqual([{ id: 'r1', status: 'removed' }]);
+    const [query] = mock.on('requests');
+    expect(allArgsOf(query, 'eq')).toEqual([['parent_id', 'p1']]);
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    expect(String(argsOf(query, 'select')?.[0])).toContain('status');
+  });
+});
+
+describe('getMyRequestForEdit', () => {
+  const id = '6c1d3b1e-0d43-4b0e-9a4f-1d2a3b4c5d6e';
+  const row = {
+    service_category_id: 4, education_level_id: null, teaching_place_id: 1, governorate_id: 2, area: null,
+    student_age: 5, description: 'x'.repeat(60), preferred_educator_gender: null, budget: null, pricing_unit_id: null,
+  };
+
+  it("loads the parent's own request without its status", async () => {
+    mock = createSupabaseMock(() => ({ data: { ...row, status: 'open' } }));
+
+    expect(await getMyRequestForEdit('p1', id)).toEqual(row);
+    expect(allArgsOf(mock.on('requests')[0], 'eq')).toEqual([['id', id], ['parent_id', 'p1']]);
+  });
+
+  it('returns null for removed, missing or malformed requests', async () => {
+    mock = createSupabaseMock(() => ({ data: { ...row, status: 'removed' } }));
+    expect(await getMyRequestForEdit('p1', id)).toBeNull();
+
+    mock = createSupabaseMock(() => ({ data: null }));
+    expect(await getMyRequestForEdit('p1', id)).toBeNull();
+
+    mock = createSupabaseMock();
+    expect(await getMyRequestForEdit('p1', 'not-a-uuid')).toBeNull();
+    expect(mock.queries).toHaveLength(0);
   });
 });

@@ -61,3 +61,15 @@ export async function getPricingUnits(): Promise<PricingUnit[]> {
   if (error) throw error;
   return data || [];
 }
+
+/** Everything the request form needs, fetched in parallel. */
+export async function getRequestFormLookups() {
+  const [services, levels, places, governorates, pricingUnits] = await Promise.all([
+    getServiceCategories(),
+    getEducationLevels(),
+    getTeachingPlaces(),
+    getGovernorates(),
+    getPricingUnits(),
+  ]);
+  return { services, levels, places, governorates, pricingUnits };
+}

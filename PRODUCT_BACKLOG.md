@@ -1,44 +1,41 @@
-# Nabni Product Backlog & Project Status Review
+# Nabni Product Backlog & Project Status
 
-## 1. Current Project Status Review
-Below is an assessment of every feature currently present in the codebase.
+_Last updated: 2026-10-24 (Sprint 2). Work is tracked in Jira project **NAB**; this file is the overview._
 
-| Feature | Status | Notes |
+## 1. Built and live on `main`
+
+| Area | What works | Jira |
 | :--- | :--- | :--- |
-| **Landing Page UI (Hero & Layout)** | ✅ Completed | Fully styled, responsive, matches design requirements. |
-| **Dark Mode Toggle** | ✅ Completed | Works perfectly, saves user preference in `localStorage`. |
-| **Mobile Navigation Menu** | ✅ Completed | Slide-out menu works with smooth animations. |
-| **Custom Searchable Dropdowns** | ✅ Completed | UI component works perfectly for filtering large lists. |
-| **Multi-step Signup UI** | 🚧 Partially Implemented | Form logic, validation, and steps work perfectly in the browser. Needs backend integration. |
-| **Login Modal UI** | 🚧 Partially Implemented | Modal opens and closes. Needs backend authentication. |
-| **Tutor Profile Modal UI** | 🚧 Partially Implemented | Beautiful UI is implemented, but displays hardcoded static data. |
-| **Newsletter Subscription UI** | 🚧 Partially Implemented | Shows a toast notification on submit, but doesn't save the email anywhere. |
+| **Platform** | Next.js 14 (App Router) + MUI 5 with RTL Arabic UI, migrated from the HTML prototype. | Foundation (NAB-1) |
+| **Database** | Supabase Postgres; the live schema is the source of truth (`supabase/migrations/000_baseline.sql` onward). Lookup tables seeded: governorates, service categories, education levels, teaching places, pricing units. Row-level security on every table. | NAB-1, NAB-22..33 |
+| **Accounts** | Email/password sign-up and login for parents and educators; profile row created by a trigger; nobody can sign up as admin. Protected routes via middleware. | Authentication (NAB-2) |
+| **Profiles** | Parent profile form; educator profile form with photo upload, services, education levels and locations. | Profiles (NAB-3) |
+| **Educator directory** | `/educators` lists verified educators with filters; contact details are never exposed publicly (`educator_directory` view). | Tutor Directory (NAB-6) |
+| **Requests** | Public feed of open requests with filters (`/requests`). Parents post, edit, close, cancel and reopen their own requests; a dashboard summarises them. | Parent Requests (NAB-5, NAB-61..64) |
+| **Admin dashboard** | Educator verification (pending / verified / rejected / suspended), parent accounts (suspend / reactivate), request moderation (close / reopen / hide), and an activity log of every admin action. Suspension and hiding are enforced in the database. | Admin Dashboard (NAB-35) |
+| **Quality** | Vitest unit and component tests, a repeatable database permission test suite (`supabase/tests/permissions.sql`), GitHub Actions CI (typecheck, tests, build), CodeRabbit review after each task. | Testing & Quality (NAB-44) |
 
----
+## 2. Partly done
 
-## 2. Missing MVP Features (Product Backlog)
-These are the critical features required to launch the Minimum Viable Product, all of which are currently in the **Not Started** phase.
+| Item | Gap |
+| :--- | :--- |
+| **Home page** | Layout is complete, but the featured educators, ratings and the stats counters show placeholder data. |
+| **Educator dashboard** (`/teacher`) | Still a placeholder; becomes useful with offers. |
+| **Contact / newsletter** | Forms don't store anything yet. |
 
-| MVP Feature | Status | Description | Priority |
-| :--- | :--- | :--- | :--- |
-| **Tech Stack Migration** | ❌ Not Started | Port the vanilla HTML/JS code into Next.js (React) to manage state cleanly and enable routing. | 🔴 Critical |
-| **Supabase Setup & Schema** | ❌ Not Started | Initialize Supabase. Create PostgreSQL tables for `users`, `profiles`, `tutors`, `governorates`, `subjects`. | 🔴 Critical |
-| **Authentication Integration** | ❌ Not Started | Wire the existing Login/Signup UI to Supabase Auth so parents and tutors can actually create accounts. | 🔴 Critical |
-| **Dynamic Data Fetching** | ❌ Not Started | Replace the hardcoded Javascript arrays for governorates and subjects with dynamic data fetched from Supabase. | 🟠 High |
-| **Tutor Directory Page** | ❌ Not Started | Create a dedicated page (`/tutors`) that queries the database and lists all approved tutors with filtering. | 🟠 High |
-| **Public Tutor Profile Pages** | ❌ Not Started | Create dynamic URL routes (e.g., `/tutor/123`) to show individual tutor data, moving away from just a modal. | 🟠 High |
-| **Data Persistence (Submitting forms)** | ❌ Not Started | When a user completes their profile, actually insert their details, bio, and pricing into the database. | 🔴 Critical |
+## 3. Next up
 
----
+| Feature | Description | Priority |
+| :--- | :--- | :--- |
+| **Offers** | Verified educators send an offer (price, schedule, message) on an open request; educators can't see each other's offers; the parent accepts one, which closes the request and declines the rest. | 🔴 Critical |
+| **Public educator profiles** | `/educators/[id]` page per verified educator instead of the card only. | 🟠 High |
+| **Real home page data** | Featured educators and counters from the database. | 🟠 High |
+| **Notifications** | Tell parents about new offers and educators about accepted ones (in-app first, then email/WhatsApp). | 🟠 High |
 
-## 3. Future Roadmap (Post-MVP)
+## 4. Later
 
-### Version 1.1 Features
-- **User Dashboard** (❌ Not Started): Private area for tutors to edit profiles and parents to see saved tutors.
-- **Trial Booking System** (❌ Not Started): Allow parents to click "Book" and notify the tutor.
-- **Admin Panel** (❌ Not Started): Interface for admins to approve/reject tutors.
-
-### Version 2.0 Features
-- **In-platform Messaging** (❌ Not Started): Real-time chat between parents and tutors.
-- **Payment Gateway** (❌ Not Started): Online payment for sessions.
-- **Review System** (❌ Not Started): 5-star ratings and written reviews after sessions.
+- **Ratings and reviews** after a completed engagement, with admin moderation of reported reviews.
+- **Admin reports**: daily sign-ups, requests and accepted offers; most requested services and governorates.
+- **Admin roles**: super admin, operations, support, read-only.
+- **In-platform messaging** between a parent and the educator they accepted.
+- **Online payment** for sessions.

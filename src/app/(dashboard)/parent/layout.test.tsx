@@ -26,7 +26,7 @@ async function renderLayout() {
 
 describe('ParentLayout', () => {
   it('shows the page to an active parent', async () => {
-    mock = createSupabaseMock(() => ({ data: { is_active: true } }));
+    mock = createSupabaseMock(() => ({ data: { role: 'parent', is_active: true } }));
     await renderLayout();
 
     expect(screen.getByText('dashboard')).toBeInTheDocument();
@@ -34,7 +34,7 @@ describe('ParentLayout', () => {
   });
 
   it('shows the suspension notice instead of the page to a suspended parent', async () => {
-    mock = createSupabaseMock(() => ({ data: { is_active: false } }));
+    mock = createSupabaseMock(() => ({ data: { role: 'parent', is_active: false } }));
     await renderLayout();
 
     expect(screen.getByText('تم إيقاف حسابك')).toBeInTheDocument();
@@ -46,5 +46,24 @@ describe('ParentLayout', () => {
     user = null;
 
     await expect(renderLayout()).rejects.toThrow('redirect:/login?redirectTo=/parent');
+  });
+});
+
+describe('ParentLayout roles', () => {
+  it.each(['educator', 'admin'])('sends a %s to their own dashboard', async (role) => {
+    mock = createSupabaseMock(() => ({ data: { role, is_active: true } }));
+
+    await expect(renderLayout()).rejects.toThrow('redirect:/dashboard');
+  });
+});
+
+describe('ParentLayout without a profile (NAB-66)', () => {
+  it.each([
+    ['the profile is missing', () => ({ data: null })],
+    ['the profile query fails', () => ({ error: { message: 'timeout' } })],
+  ])('blocks the page when %s', async (_, respond) => {
+    mock = createSupabaseMock(respond);
+
+    await expect(renderLayout()).rejects.toThrow('redirect:/dashboard');
   });
 });
