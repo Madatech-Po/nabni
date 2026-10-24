@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Card, CardContent, Typography, Box, Chip, Stack } from '@mui/material';
 import { MapPin, User, Home, DollarSign, Clock, GraduationCap } from 'lucide-react';
 import type { RequestFeedItem } from '@/services/requests';
@@ -19,7 +20,14 @@ function timeAgo(isoDate: string): string {
   return `منذ ${days} يوم`;
 }
 
-export default function RequestCard({ request }: { request: RequestFeedItem }) {
+export default function RequestCard({
+  request,
+  footer,
+}: {
+  request: RequestFeedItem;
+  /** Extra content under the description, e.g. the owner's status and actions. */
+  footer?: ReactNode;
+}) {
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardContent sx={{ flexGrow: 1, p: 3 }}>
@@ -74,6 +82,7 @@ export default function RequestCard({ request }: { request: RequestFeedItem }) {
         >
           {request.description}
         </Typography>
+        {footer && <Box sx={{ mt: 3 }}>{footer}</Box>}
       </CardContent>
     </Card>
   );

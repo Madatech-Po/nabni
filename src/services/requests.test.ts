@@ -4,7 +4,7 @@ import { allArgsOf, argsOf, createSupabaseMock } from '@/test/supabaseMock';
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { getOpenRequests } from './requests';
+import { getMyRequests, getOpenRequests } from './requests';
 
 beforeEach(() => {
   mock = createSupabaseMock(() => ({ data: [{ id: 'r1' }] }));
@@ -50,5 +50,17 @@ describe('getOpenRequests', () => {
     mock = createSupabaseMock(() => ({ error: { message: 'boom' } }));
 
     await expect(getOpenRequests()).rejects.toMatchObject({ message: 'boom' });
+  });
+});
+
+describe('getMyRequests', () => {
+  it("reads only the parent's own requests, every status, newest first", async () => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'r1', status: 'removed' }] }));
+
+    expect(await getMyRequests('p1')).toEqual([{ id: 'r1', status: 'removed' }]);
+    const [query] = mock.on('requests');
+    expect(allArgsOf(query, 'eq')).toEqual([['parent_id', 'p1']]);
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    expect(String(argsOf(query, 'select')?.[0])).toContain('status');
   });
 });
