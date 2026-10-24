@@ -162,3 +162,38 @@ describe('getRequestsForAdmin', () => {
     expect(argsOf(mock.on('requests')[0], 'ilike')).toEqual(['description', '%قراءة%']);
   });
 });
+
+describe('pages past the end (NAB-59)', () => {
+  // PostgREST answers PGRST103 for an offset beyond the last row; the second query (range 0-0)
+  // returns the real total for the same filters.
+  function pastTheEnd() {
+    return createSupabaseMock((query) => {
+      const [from] = argsOf(query, 'range') as [number];
+      return from > 0
+        ? { error: { code: 'PGRST103', message: 'Requested range not satisfiable' } }
+        : { data: [{ id: 'x' }], count: 7 };
+    });
+  }
+
+  it('returns an empty parents page with the real total', async () => {
+    mock = pastTheEnd();
+
+    expect(await getParentsForAdmin({ page: 9, active: false })).toEqual({ items: [], total: 7 });
+    const [, retry] = mock.on('profiles');
+    expect(argsOf(retry, 'range')).toEqual([0, 0]);
+    expect(allArgsOf(retry, 'eq')).toContainEqual(['is_active', false]);
+  });
+
+  it('returns an empty requests page with the real total', async () => {
+    mock = pastTheEnd();
+
+    expect(await getRequestsForAdmin({ page: 9, status: 'open' })).toEqual({ items: [], total: 7 });
+    expect(allArgsOf(mock.on('requests')[1], 'eq')).toContainEqual(['status', 'open']);
+  });
+
+  it('still throws other errors', async () => {
+    mock = createSupabaseMock(() => ({ error: { code: '42501', message: 'permission denied' } }));
+
+    await expect(getRequestsForAdmin({ page: 2 })).rejects.toMatchObject({ code: '42501' });
+  });
+});

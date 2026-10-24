@@ -75,6 +75,27 @@ function pageRange(page: number | undefined): [number, number] {
   return [from, from + ADMIN_PAGE_SIZE - 1];
 }
 
+interface PagedQuery {
+  range(from: number, to: number): PromiseLike<{
+    data: unknown[] | null;
+    error: { code?: string; message: string } | null;
+    count: number | null;
+  }>;
+}
+
+// Runs one page of a filtered list. Past the last page PostgREST answers PGRST103 instead of
+// an empty page, so the same filters are re-run for a single row just to learn the total.
+async function fetchPage<T>(build: () => PagedQuery, page: number | undefined): Promise<Paged<T>> {
+  const { data, error, count } = await build().range(...pageRange(page));
+  if (error?.code === 'PGRST103') {
+    const first = await build().range(0, 0);
+    if (first.error) throw first.error;
+    return { items: [], total: first.count ?? 0 };
+  }
+  if (error) throw error;
+  return { items: (data || []) as T[], total: count ?? 0 };
+}
+
 export interface AdminParentItem {
   id: string;
   full_name: string;
@@ -93,28 +114,22 @@ export interface AdminParentFilters {
 
 export async function getParentsForAdmin(filters: AdminParentFilters = {}): Promise<Paged<AdminParentItem>> {
   const supabase = createClient();
+  const q = filters.q ? sanitizeSearch(filters.q) : '';
 
   // Every profile is readable by admins ("Admins can view all profiles", NAB-51).
-  let query = supabase
-    .from('profiles')
-    .select('id, full_name, phone, is_active, created_at, governorate:governorates(name_ar), requests(count)', {
-      count: 'exact',
-    })
-    .eq('role', 'parent')
-    .order('created_at', { ascending: false });
+  return fetchPage<AdminParentItem>(() => {
+    let query = supabase
+      .from('profiles')
+      .select('id, full_name, phone, is_active, created_at, governorate:governorates(name_ar), requests(count)', {
+        count: 'exact',
+      })
+      .eq('role', 'parent')
+      .order('created_at', { ascending: false });
 
-  if (filters.active !== undefined) {
-    query = query.eq('is_active', filters.active);
-  }
-
-  const q = filters.q ? sanitizeSearch(filters.q) : '';
-  if (q) {
-    query = query.or(`full_name.ilike.*${q}*,phone.ilike.*${q}*`);
-  }
-
-  const { data, error, count } = await query.range(...pageRange(filters.page));
-  if (error) throw error;
-  return { items: (data || []) as unknown as AdminParentItem[], total: count ?? 0 };
+    if (filters.active !== undefined) query = query.eq('is_active', filters.active);
+    if (q) query = query.or(`full_name.ilike.*${q}*,phone.ilike.*${q}*`);
+    return query;
+  }, filters.page);
 }
 
 export const REQUEST_STATUSES: RequestStatus[] = ['open', 'closed', 'cancelled', 'removed'];
@@ -146,30 +161,28 @@ export interface AdminRequestFilters {
 
 export async function getRequestsForAdmin(filters: AdminRequestFilters = {}): Promise<Paged<AdminRequestItem>> {
   const supabase = createClient();
+  const q = filters.q ? sanitizeSearch(filters.q) : '';
 
   // Admins read every request, removed ones included ("Admins can view all requests", NAB-51).
-  let query = supabase
-    .from('requests')
-    .select(
-      `id, description, student_age, status, budget, area, created_at,
-       parent:profiles(id, full_name, phone, is_active),
-       service_category:service_categories(name_ar),
-       governorate:governorates(name_ar),
-       pricing_unit:pricing_units(name_ar)`,
-      { count: 'exact' }
-    )
-    .order('created_at', { ascending: false });
+  return fetchPage<AdminRequestItem>(() => {
+    let query = supabase
+      .from('requests')
+      .select(
+        `id, description, student_age, status, budget, area, created_at,
+         parent:profiles(id, full_name, phone, is_active),
+         service_category:service_categories(name_ar),
+         governorate:governorates(name_ar),
+         pricing_unit:pricing_units(name_ar)`,
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false });
 
-  if (filters.status) query = query.eq('status', filters.status);
-  if (filters.serviceCategoryId) query = query.eq('service_category_id', filters.serviceCategoryId);
-  if (filters.governorateId) query = query.eq('governorate_id', filters.governorateId);
-  // An invalid id would make Postgres reject the whole query; ignore it instead.
-  if (filters.parentId && UUID_RE.test(filters.parentId)) query = query.eq('parent_id', filters.parentId);
-
-  const q = filters.q ? sanitizeSearch(filters.q) : '';
-  if (q) query = query.ilike('description', `%${q}%`);
-
-  const { data, error, count } = await query.range(...pageRange(filters.page));
-  if (error) throw error;
-  return { items: (data || []) as unknown as AdminRequestItem[], total: count ?? 0 };
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.serviceCategoryId) query = query.eq('service_category_id', filters.serviceCategoryId);
+    if (filters.governorateId) query = query.eq('governorate_id', filters.governorateId);
+    // An invalid id would make Postgres reject the whole query; ignore it instead.
+    if (filters.parentId && UUID_RE.test(filters.parentId)) query = query.eq('parent_id', filters.parentId);
+    if (q) query = query.ilike('description', `%${q}%`);
+    return query;
+  }, filters.page);
 }
