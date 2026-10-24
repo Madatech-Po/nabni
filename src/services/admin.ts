@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
-import type { EducatorGender, EducatorVerificationStatus } from '@/types/database';
+import type { EducatorGender, EducatorVerificationStatus, RequestStatus } from '@/types/database';
 
 export const VERIFICATION_STATUSES: EducatorVerificationStatus[] = ['pending', 'verified', 'rejected', 'suspended'];
 
@@ -115,4 +115,61 @@ export async function getParentsForAdmin(filters: AdminParentFilters = {}): Prom
   const { data, error, count } = await query.range(...pageRange(filters.page));
   if (error) throw error;
   return { items: (data || []) as unknown as AdminParentItem[], total: count ?? 0 };
+}
+
+export const REQUEST_STATUSES: RequestStatus[] = ['open', 'closed', 'cancelled', 'removed'];
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface AdminRequestItem {
+  id: string;
+  description: string;
+  student_age: number;
+  status: RequestStatus;
+  budget: number | null;
+  area: string | null;
+  created_at: string;
+  parent: { id: string; full_name: string; phone: string | null; is_active: boolean } | null;
+  service_category: { name_ar: string } | null;
+  governorate: { name_ar: string } | null;
+  pricing_unit: { name_ar: string } | null;
+}
+
+export interface AdminRequestFilters {
+  status?: RequestStatus;
+  serviceCategoryId?: number;
+  governorateId?: number;
+  parentId?: string;
+  q?: string;
+  page?: number;
+}
+
+export async function getRequestsForAdmin(filters: AdminRequestFilters = {}): Promise<Paged<AdminRequestItem>> {
+  const supabase = createClient();
+
+  // Admins read every request, removed ones included ("Admins can view all requests", NAB-51).
+  let query = supabase
+    .from('requests')
+    .select(
+      `id, description, student_age, status, budget, area, created_at,
+       parent:profiles(id, full_name, phone, is_active),
+       service_category:service_categories(name_ar),
+       governorate:governorates(name_ar),
+       pricing_unit:pricing_units(name_ar)`,
+      { count: 'exact' }
+    )
+    .order('created_at', { ascending: false });
+
+  if (filters.status) query = query.eq('status', filters.status);
+  if (filters.serviceCategoryId) query = query.eq('service_category_id', filters.serviceCategoryId);
+  if (filters.governorateId) query = query.eq('governorate_id', filters.governorateId);
+  // An invalid id would make Postgres reject the whole query; ignore it instead.
+  if (filters.parentId && UUID_RE.test(filters.parentId)) query = query.eq('parent_id', filters.parentId);
+
+  const q = filters.q ? sanitizeSearch(filters.q) : '';
+  if (q) query = query.ilike('description', `%${q}%`);
+
+  const { data, error, count } = await query.range(...pageRange(filters.page));
+  if (error) throw error;
+  return { items: (data || []) as unknown as AdminRequestItem[], total: count ?? 0 };
 }

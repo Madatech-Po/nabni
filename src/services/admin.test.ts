@@ -4,7 +4,7 @@ import { allArgsOf, argsOf, createSupabaseMock, hasCall } from '@/test/supabaseM
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { ADMIN_PAGE_SIZE, getEducatorsForReview, getParentsForAdmin } from './admin';
+import { ADMIN_PAGE_SIZE, getEducatorsForReview, getParentsForAdmin, getRequestsForAdmin } from './admin';
 
 beforeEach(() => {
   mock = createSupabaseMock(() => ({ data: [{ id: 'e1' }] }));
@@ -115,5 +115,50 @@ describe('getParentsForAdmin', () => {
 
     mock = createSupabaseMock(() => ({ error: { message: 'boom' } }));
     await expect(getParentsForAdmin()).rejects.toMatchObject({ message: 'boom' });
+  });
+});
+
+describe('getRequestsForAdmin', () => {
+  beforeEach(() => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'r1' }], count: 3 }));
+  });
+
+  it('lists every request newest first, with the parent and lookups', async () => {
+    const result = await getRequestsForAdmin();
+
+    const [query] = mock.on('requests');
+    expect(result).toEqual({ items: [{ id: 'r1' }], total: 3 });
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    expect(hasCall(query, 'eq')).toBe(false);
+    const [columns, options] = argsOf(query, 'select') as [string, unknown];
+    for (const part of ['parent:profiles(id, full_name, phone, is_active)', 'service_categories(name_ar)', 'governorates(name_ar)']) {
+      expect(columns).toContain(part);
+    }
+    expect(options).toEqual({ count: 'exact' });
+    expect(argsOf(query, 'range')).toEqual([0, ADMIN_PAGE_SIZE - 1]);
+  });
+
+  it('applies status, service, governorate and parent filters', async () => {
+    const parentId = '29dd7ba3-d2f2-4ac5-a310-08ce674c397c';
+    await getRequestsForAdmin({ status: 'removed', serviceCategoryId: 4, governorateId: 7, parentId });
+
+    expect(allArgsOf(mock.on('requests')[0], 'eq')).toEqual([
+      ['status', 'removed'],
+      ['service_category_id', 4],
+      ['governorate_id', 7],
+      ['parent_id', parentId],
+    ]);
+  });
+
+  it('ignores a parent id that is not a uuid', async () => {
+    await getRequestsForAdmin({ parentId: 'abc' });
+
+    expect(hasCall(mock.on('requests')[0], 'eq')).toBe(false);
+  });
+
+  it('searches the description with the cleaned term', async () => {
+    await getRequestsForAdmin({ q: ' قراءة%_ ' });
+
+    expect(argsOf(mock.on('requests')[0], 'ilike')).toEqual(['description', '%قراءة%']);
   });
 });
