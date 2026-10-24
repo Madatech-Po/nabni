@@ -7,6 +7,7 @@ import { ADMIN_PAGE_SIZE, getParentsForAdmin } from '@/services/admin';
 import AdminListFilters from '@/components/admin/AdminListFilters';
 import AdminPagination from '@/components/admin/AdminPagination';
 import ParentAccountActions from '@/components/admin/ParentAccountActions';
+import { formatDate } from '@/utils/formatDate';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'الكل' },
@@ -68,7 +69,7 @@ export default async function AdminParentsPage({
                     <TableCell sx={{ fontWeight: 'bold' }}>{parent.full_name || '—'}</TableCell>
                     <TableCell dir="ltr" sx={{ textAlign: 'right' }}>{parent.phone || '—'}</TableCell>
                     <TableCell>{parent.governorate?.name_ar || '—'}</TableCell>
-                    <TableCell>{new Date(parent.created_at).toLocaleDateString('ar-EG')}</TableCell>
+                    <TableCell>{formatDate(parent.created_at)}</TableCell>
                     <TableCell>
                       {requestCount > 0 ? (
                         <Link href={`/admin/requests?parent=${parent.id}`}>{requestCount} طلب</Link>

@@ -1,6 +1,7 @@
 import { Card, CardContent, Avatar, Typography, Box, Chip, Stack, Divider } from '@mui/material';
 import type { AdminEducatorItem } from '@/services/admin';
 import { STATUS_COLORS, STATUS_LABELS } from './verificationStatus';
+import { formatDate } from '@/utils/formatDate';
 
 function names(items: ({ name_ar: string } | null)[]): string[] {
   return items.filter((item): item is { name_ar: string } => Boolean(item)).map((item) => item.name_ar);
@@ -44,7 +45,7 @@ export default function EducatorReviewCard({
           <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h6" fontWeight="bold">{educator.full_name}</Typography>
             <Typography variant="caption" color="text.secondary">
-              سجّل في {educator.created_at ? new Date(educator.created_at).toLocaleDateString('ar-EG') : '—'}
+              سجّل في {educator.created_at ? formatDate(educator.created_at) : '—'}
             </Typography>
           </Box>
           <Chip label={STATUS_LABELS[status]} color={STATUS_COLORS[status]} />

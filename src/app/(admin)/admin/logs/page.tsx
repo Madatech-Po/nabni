@@ -7,6 +7,7 @@ import { ADMIN_LOG_ACTIONS, ADMIN_PAGE_SIZE, getAdminLogs, type AdminLogAction }
 import AdminListFilters from '@/components/admin/AdminListFilters';
 import AdminPagination from '@/components/admin/AdminPagination';
 import { ACTION_LABELS, describeChange, targetHref } from '@/components/admin/adminLogFormat';
+import { formatDateTime } from '@/utils/formatDate';
 
 export default async function AdminLogsPage({
   searchParams,
@@ -69,7 +70,7 @@ export default async function AdminLogsPage({
                 return (
                   <TableRow key={item.id} hover>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      {new Date(item.created_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {formatDateTime(item.created_at)}
                     </TableCell>
                     <TableCell>{item.admin?.full_name || '—'}</TableCell>
                     <TableCell>

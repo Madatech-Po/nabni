@@ -8,6 +8,7 @@ import AdminPagination from '@/components/admin/AdminPagination';
 import RequestModerationActions from '@/components/admin/RequestModerationActions';
 import { REQUEST_STATUS_COLORS, REQUEST_STATUS_LABELS } from '@/components/admin/requestStatus';
 import type { RequestStatus } from '@/types/database';
+import { formatDate } from '@/utils/formatDate';
 
 const ALL = { value: 'all', label: 'الكل' };
 
@@ -118,7 +119,7 @@ export default async function AdminRequestsPage({
                     ? `${request.budget} ج.م${request.pricing_unit ? ` / ${request.pricing_unit.name_ar}` : ''}`
                     : 'قابل للتفاوض'}
                 </Typography>
-                <Typography variant="body2">{new Date(request.created_at).toLocaleDateString('ar-EG')}</Typography>
+                <Typography variant="body2">{formatDate(request.created_at)}</Typography>
               </Box>
 
               <RequestModerationActions requestId={request.id} status={request.status} />
