@@ -186,3 +186,69 @@ export async function getRequestsForAdmin(filters: AdminRequestFilters = {}): Pr
     return query;
   }, filters.page);
 }
+
+export const ADMIN_LOG_ACTIONS = [
+  'educator.verification_status_changed',
+  'profile.active_changed',
+  'request.status_changed',
+] as const;
+export type AdminLogAction = (typeof ADMIN_LOG_ACTIONS)[number];
+
+export interface AdminLogItem {
+  id: number;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  details: { from?: unknown; to?: unknown; reason?: string | null };
+  created_at: string;
+  admin: { full_name: string } | null;
+  /** Educator/parent name or the start of the request text; null if the target is gone. */
+  target_label: string | null;
+}
+
+// Where each target type's display name comes from.
+const TARGET_LABELS: Record<string, { table: 'educators' | 'profiles' | 'requests'; column: string }> = {
+  educator: { table: 'educators', column: 'full_name' },
+  profile: { table: 'profiles', column: 'full_name' },
+  request: { table: 'requests', column: 'description' },
+};
+
+export async function getAdminLogs(
+  filters: { action?: AdminLogAction; page?: number } = {}
+): Promise<Paged<AdminLogItem>> {
+  const supabase = createClient();
+
+  const page = await fetchPage<Omit<AdminLogItem, 'target_label'>>(() => {
+    let query = supabase
+      .from('admin_logs')
+      .select('id, action, target_type, target_id, details, created_at, admin:profiles(full_name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
+    if (filters.action) query = query.eq('action', filters.action);
+    return query;
+  }, filters.page);
+
+  // One lookup per target type on this page, instead of one per row.
+  const labels = new Map<string, string>();
+  await Promise.all(
+    Object.entries(TARGET_LABELS).map(async ([type, { table, column }]) => {
+      const ids = Array.from(
+        new Set(page.items.filter((i) => i.target_type === type && i.target_id).map((i) => i.target_id as string))
+      );
+      if (ids.length === 0) return;
+      const { data, error } = await supabase.from(table).select(`id, ${column}`).in('id', ids);
+      if (error) throw error;
+      for (const row of (data || []) as unknown as Record<string, string>[]) {
+        labels.set(`${type}:${row.id}`, row[column]);
+      }
+    })
+  );
+
+  return {
+    total: page.total,
+    items: page.items.map((item) => ({
+      ...item,
+      target_label: (item.target_id && labels.get(`${item.target_type}:${item.target_id}`)) || null,
+    })),
+  };
+}

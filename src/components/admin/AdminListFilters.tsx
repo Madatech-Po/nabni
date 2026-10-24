@@ -20,7 +20,8 @@ export default function AdminListFilters({
   searchLabel,
 }: {
   selects: FilterSelect[];
-  searchLabel: string;
+  /** Omit to show only the selects. */
+  searchLabel?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -72,13 +73,17 @@ export default function AdminListFilters({
         );
       })}
 
-      <TextField
-        label={searchLabel}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        sx={{ minWidth: 260 }}
-      />
-      <Button type="submit" variant="outlined">بحث</Button>
+      {searchLabel && (
+        <>
+          <TextField
+            label={searchLabel}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            sx={{ minWidth: 260 }}
+          />
+          <Button type="submit" variant="outlined">بحث</Button>
+        </>
+      )}
     </Box>
   );
 }

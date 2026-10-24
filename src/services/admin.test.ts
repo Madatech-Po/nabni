@@ -4,7 +4,7 @@ import { allArgsOf, argsOf, createSupabaseMock, hasCall } from '@/test/supabaseM
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { ADMIN_PAGE_SIZE, getEducatorsForReview, getParentsForAdmin, getRequestsForAdmin } from './admin';
+import { ADMIN_PAGE_SIZE, getAdminLogs, getEducatorsForReview, getParentsForAdmin, getRequestsForAdmin } from './admin';
 
 beforeEach(() => {
   mock = createSupabaseMock(() => ({ data: [{ id: 'e1' }] }));
@@ -195,5 +195,54 @@ describe('pages past the end (NAB-59)', () => {
     mock = createSupabaseMock(() => ({ error: { code: '42501', message: 'permission denied' } }));
 
     await expect(getRequestsForAdmin({ page: 2 })).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('getAdminLogs', () => {
+  const logs = [
+    { id: 3, action: 'request.status_changed', target_type: 'request', target_id: 'r1', details: {} },
+    { id: 2, action: 'profile.active_changed', target_type: 'profile', target_id: 'p1', details: {} },
+    { id: 1, action: 'profile.active_changed', target_type: 'profile', target_id: 'p1', details: {} },
+    { id: 0, action: 'educator.verification_status_changed', target_type: 'educator', target_id: 'gone', details: {} },
+  ];
+
+  beforeEach(() => {
+    mock = createSupabaseMock((query) => {
+      if (query.table === 'admin_logs') return { data: logs, count: 4 };
+      if (query.table === 'requests') return { data: [{ id: 'r1', description: 'نحتاج معلمة' }] };
+      if (query.table === 'profiles') return { data: [{ id: 'p1', full_name: 'منى' }] };
+      return { data: [] };
+    });
+  });
+
+  it('lists entries newest first with the admin name', async () => {
+    await getAdminLogs();
+
+    const [query] = mock.on('admin_logs');
+    expect(String(argsOf(query, 'select')?.[0])).toContain('admin:profiles(full_name)');
+    expect(allArgsOf(query, 'order')).toEqual([['created_at', { ascending: false }], ['id', { ascending: false }]]);
+    expect(hasCall(query, 'eq')).toBe(false);
+  });
+
+  it('filters by action', async () => {
+    await getAdminLogs({ action: 'request.status_changed' });
+
+    expect(argsOf(mock.on('admin_logs')[0], 'eq')).toEqual(['action', 'request.status_changed']);
+  });
+
+  it('looks up target names once per type and marks missing targets', async () => {
+    const { items, total } = await getAdminLogs();
+
+    expect(total).toBe(4);
+    expect(items.map((i) => i.target_label)).toEqual(['نحتاج معلمة', 'منى', 'منى', null]);
+    expect(argsOf(mock.on('profiles')[0], 'in')).toEqual(['id', ['p1']]);
+    expect(argsOf(mock.on('educators')[0], 'in')).toEqual(['id', ['gone']]);
+  });
+
+  it('skips the lookups when the page is empty', async () => {
+    mock = createSupabaseMock(() => ({ data: [], count: 0 }));
+
+    expect(await getAdminLogs()).toEqual({ items: [], total: 0 });
+    expect(mock.queries.map((q) => q.table)).toEqual(['admin_logs']);
   });
 });
