@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import type { RequestInput } from '@/components/requests/requestFormValues';
 import type { EducatorGender, RequestStatus } from '@/types/database';
 
 export interface RequestFeedItem {
@@ -72,4 +73,30 @@ export async function getMyRequests(parentId: string): Promise<MyRequestItem[]> 
 
   if (error) throw error;
   return (data || []) as unknown as MyRequestItem[];
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One of the parent's own requests, as stored, for the edit form. Null when the id is
+ * malformed, the request belongs to someone else, or an admin removed it.
+ */
+export async function getMyRequestForEdit(parentId: string, requestId: string): Promise<RequestInput | null> {
+  if (!UUID_RE.test(requestId)) return null;
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('requests')
+    .select(
+      `service_category_id, education_level_id, teaching_place_id, governorate_id, area, student_age,
+       description, preferred_educator_gender, budget, pricing_unit_id, status`
+    )
+    .eq('id', requestId)
+    .eq('parent_id', parentId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data || data.status === 'removed') return null;
+  const { status: _status, ...input } = data;
+  return input as RequestInput;
 }
