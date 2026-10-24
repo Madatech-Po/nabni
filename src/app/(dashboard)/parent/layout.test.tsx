@@ -56,3 +56,14 @@ describe('ParentLayout roles', () => {
     await expect(renderLayout()).rejects.toThrow('redirect:/dashboard');
   });
 });
+
+describe('ParentLayout without a profile (NAB-66)', () => {
+  it.each([
+    ['the profile is missing', () => ({ data: null })],
+    ['the profile query fails', () => ({ error: { message: 'timeout' } })],
+  ])('blocks the page when %s', async (_, respond) => {
+    mock = createSupabaseMock(respond);
+
+    await expect(renderLayout()).rejects.toThrow('redirect:/dashboard');
+  });
+});

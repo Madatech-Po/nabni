@@ -9,15 +9,16 @@ export default async function ParentLayout({ children }: { children: React.React
 
   if (!user) redirect('/login?redirectTo=/parent');
 
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('role, is_active')
     .eq('id', user.id)
     .single();
 
-  // Educators and admins have their own dashboards; /dashboard sends each role home.
-  if (profile && profile.role !== 'parent') redirect('/dashboard');
-  if (profile && !profile.is_active) return <SuspendedNotice />;
+  // Fail closed: without a readable parent profile nothing here is shown. Educators and
+  // admins have their own dashboards; /dashboard sends each role home.
+  if (error || !profile || profile.role !== 'parent') redirect('/dashboard');
+  if (!profile.is_active) return <SuspendedNotice />;
 
   return children;
 }

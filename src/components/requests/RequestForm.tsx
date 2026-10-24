@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Alert, Box, Button, FormControl, FormHelperText, Grid, InputLabel, MenuItem, Select, TextField,
@@ -182,7 +183,7 @@ export default function RequestForm({
         <Button type="submit" variant="contained" size="large" disabled={saving}>
           {requestId ? 'حفظ التعديلات' : 'نشر الطلب'}
         </Button>
-        <Button variant="text" size="large" disabled={saving} onClick={() => router.back()}>
+        <Button component={Link} href="/parent/requests" variant="text" size="large" disabled={saving}>
           إلغاء
         </Button>
       </Box>

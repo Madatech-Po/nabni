@@ -36,6 +36,12 @@ beforeEach(() => {
 });
 
 describe('RequestForm', () => {
+  it('cancels back to "my requests", even on a direct visit', () => {
+    render(<RequestForm lookups={lookups} parentId="p1" />);
+
+    expect(screen.getByRole('link', { name: 'إلغاء' })).toHaveAttribute('href', '/parent/requests');
+  });
+
   it('shows what is missing and saves nothing', async () => {
     render(<RequestForm lookups={lookups} parentId="p1" />);
 
