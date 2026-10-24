@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
-import type { EducatorGender, EducatorVerificationStatus } from '@/types/database';
+import type { EducatorGender, EducatorVerificationStatus, RequestStatus } from '@/types/database';
 
 export const VERIFICATION_STATUSES: EducatorVerificationStatus[] = ['pending', 'verified', 'rejected', 'suspended'];
 
@@ -59,4 +59,196 @@ export async function getEducatorsForReview(filters: AdminEducatorFilters = {}):
   const { data, error } = await query;
   if (error) throw error;
   return (data || []) as unknown as AdminEducatorItem[];
+}
+
+export const ADMIN_PAGE_SIZE = 20;
+
+export interface Paged<T> {
+  items: T[];
+  total: number;
+}
+
+// Zero-based inclusive row range for a 1-based page number from the URL.
+function pageRange(page: number | undefined): [number, number] {
+  const current = Number.isFinite(page) && page && page > 0 ? Math.floor(page) : 1;
+  const from = (current - 1) * ADMIN_PAGE_SIZE;
+  return [from, from + ADMIN_PAGE_SIZE - 1];
+}
+
+interface PagedQuery {
+  range(from: number, to: number): PromiseLike<{
+    data: unknown[] | null;
+    error: { code?: string; message: string } | null;
+    count: number | null;
+  }>;
+}
+
+// Runs one page of a filtered list. Past the last page PostgREST answers PGRST103 instead of
+// an empty page, so the same filters are re-run for a single row just to learn the total.
+async function fetchPage<T>(build: () => PagedQuery, page: number | undefined): Promise<Paged<T>> {
+  const { data, error, count } = await build().range(...pageRange(page));
+  if (error?.code === 'PGRST103') {
+    const first = await build().range(0, 0);
+    if (first.error) throw first.error;
+    return { items: [], total: first.count ?? 0 };
+  }
+  if (error) throw error;
+  return { items: (data || []) as T[], total: count ?? 0 };
+}
+
+export interface AdminParentItem {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  governorate: { name_ar: string } | null;
+  requests: { count: number }[];
+}
+
+export interface AdminParentFilters {
+  active?: boolean;
+  q?: string;
+  page?: number;
+}
+
+export async function getParentsForAdmin(filters: AdminParentFilters = {}): Promise<Paged<AdminParentItem>> {
+  const supabase = createClient();
+  const q = filters.q ? sanitizeSearch(filters.q) : '';
+
+  // Every profile is readable by admins ("Admins can view all profiles", NAB-51).
+  return fetchPage<AdminParentItem>(() => {
+    let query = supabase
+      .from('profiles')
+      .select('id, full_name, phone, is_active, created_at, governorate:governorates(name_ar), requests(count)', {
+        count: 'exact',
+      })
+      .eq('role', 'parent')
+      .order('created_at', { ascending: false });
+
+    if (filters.active !== undefined) query = query.eq('is_active', filters.active);
+    if (q) query = query.or(`full_name.ilike.*${q}*,phone.ilike.*${q}*`);
+    return query;
+  }, filters.page);
+}
+
+export const REQUEST_STATUSES: RequestStatus[] = ['open', 'closed', 'cancelled', 'removed'];
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface AdminRequestItem {
+  id: string;
+  description: string;
+  student_age: number;
+  status: RequestStatus;
+  budget: number | null;
+  area: string | null;
+  created_at: string;
+  parent: { id: string; full_name: string; phone: string | null; is_active: boolean } | null;
+  service_category: { name_ar: string } | null;
+  governorate: { name_ar: string } | null;
+  pricing_unit: { name_ar: string } | null;
+}
+
+export interface AdminRequestFilters {
+  status?: RequestStatus;
+  serviceCategoryId?: number;
+  governorateId?: number;
+  parentId?: string;
+  q?: string;
+  page?: number;
+}
+
+export async function getRequestsForAdmin(filters: AdminRequestFilters = {}): Promise<Paged<AdminRequestItem>> {
+  const supabase = createClient();
+  const q = filters.q ? sanitizeSearch(filters.q) : '';
+
+  // Admins read every request, removed ones included ("Admins can view all requests", NAB-51).
+  return fetchPage<AdminRequestItem>(() => {
+    let query = supabase
+      .from('requests')
+      .select(
+        `id, description, student_age, status, budget, area, created_at,
+         parent:profiles(id, full_name, phone, is_active),
+         service_category:service_categories(name_ar),
+         governorate:governorates(name_ar),
+         pricing_unit:pricing_units(name_ar)`,
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false });
+
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.serviceCategoryId) query = query.eq('service_category_id', filters.serviceCategoryId);
+    if (filters.governorateId) query = query.eq('governorate_id', filters.governorateId);
+    // An invalid id would make Postgres reject the whole query; ignore it instead.
+    if (filters.parentId && UUID_RE.test(filters.parentId)) query = query.eq('parent_id', filters.parentId);
+    if (q) query = query.ilike('description', `%${q}%`);
+    return query;
+  }, filters.page);
+}
+
+export const ADMIN_LOG_ACTIONS = [
+  'educator.verification_status_changed',
+  'profile.active_changed',
+  'request.status_changed',
+] as const;
+export type AdminLogAction = (typeof ADMIN_LOG_ACTIONS)[number];
+
+export interface AdminLogItem {
+  id: number;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  details: { from?: unknown; to?: unknown; reason?: string | null };
+  created_at: string;
+  admin: { full_name: string } | null;
+  /** Educator/parent name or the start of the request text; null if the target is gone. */
+  target_label: string | null;
+}
+
+// Where each target type's display name comes from.
+const TARGET_LABELS: Record<string, { table: 'educators' | 'profiles' | 'requests'; column: string }> = {
+  educator: { table: 'educators', column: 'full_name' },
+  profile: { table: 'profiles', column: 'full_name' },
+  request: { table: 'requests', column: 'description' },
+};
+
+export async function getAdminLogs(
+  filters: { action?: AdminLogAction; page?: number } = {}
+): Promise<Paged<AdminLogItem>> {
+  const supabase = createClient();
+
+  const page = await fetchPage<Omit<AdminLogItem, 'target_label'>>(() => {
+    let query = supabase
+      .from('admin_logs')
+      .select('id, action, target_type, target_id, details, created_at, admin:profiles(full_name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
+    if (filters.action) query = query.eq('action', filters.action);
+    return query;
+  }, filters.page);
+
+  // One lookup per target type on this page, instead of one per row.
+  const labels = new Map<string, string>();
+  await Promise.all(
+    Object.entries(TARGET_LABELS).map(async ([type, { table, column }]) => {
+      const ids = Array.from(
+        new Set(page.items.filter((i) => i.target_type === type && i.target_id).map((i) => i.target_id as string))
+      );
+      if (ids.length === 0) return;
+      const { data, error } = await supabase.from(table).select(`id, ${column}`).in('id', ids);
+      if (error) throw error;
+      for (const row of (data || []) as unknown as Record<string, string>[]) {
+        labels.set(`${type}:${row.id}`, row[column]);
+      }
+    })
+  );
+
+  return {
+    total: page.total,
+    items: page.items.map((item) => ({
+      ...item,
+      target_label: (item.target_id && labels.get(`${item.target_type}:${item.target_id}`)) || null,
+    })),
+  };
 }

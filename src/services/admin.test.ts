@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { argsOf, createSupabaseMock, hasCall } from '@/test/supabaseMock';
+import { allArgsOf, argsOf, createSupabaseMock, hasCall } from '@/test/supabaseMock';
 
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { getEducatorsForReview } from './admin';
+import { ADMIN_PAGE_SIZE, getAdminLogs, getEducatorsForReview, getParentsForAdmin, getRequestsForAdmin } from './admin';
 
 beforeEach(() => {
   mock = createSupabaseMock(() => ({ data: [{ id: 'e1' }] }));
@@ -69,5 +69,180 @@ describe('getEducatorsForReview', () => {
     mock = createSupabaseMock(() => ({ error: { message: 'permission denied' } }));
 
     await expect(getEducatorsForReview()).rejects.toMatchObject({ message: 'permission denied' });
+  });
+});
+
+describe('getParentsForAdmin', () => {
+  beforeEach(() => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'p1' }], count: 41 }));
+  });
+
+  it('lists parents newest first with the exact total and request counts', async () => {
+    const result = await getParentsForAdmin();
+
+    const [query] = mock.on('profiles');
+    expect(result).toEqual({ items: [{ id: 'p1' }], total: 41 });
+    expect(argsOf(query, 'eq')).toEqual(['role', 'parent']);
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    const [columns, options] = argsOf(query, 'select') as [string, unknown];
+    expect(columns).toContain('requests(count)');
+    expect(options).toEqual({ count: 'exact' });
+  });
+
+  it('pages through the list', async () => {
+    await getParentsForAdmin({ page: 3 });
+
+    expect(argsOf(mock.on('profiles')[0], 'range')).toEqual([2 * ADMIN_PAGE_SIZE, 3 * ADMIN_PAGE_SIZE - 1]);
+  });
+
+  it('treats invalid pages as the first page', async () => {
+    await getParentsForAdmin({ page: -2 });
+
+    expect(argsOf(mock.on('profiles')[0], 'range')).toEqual([0, ADMIN_PAGE_SIZE - 1]);
+  });
+
+  it('filters suspended accounts and searches with the cleaned term', async () => {
+    await getParentsForAdmin({ active: false, q: ' 010,( ' });
+
+    const [query] = mock.on('profiles');
+    expect(allArgsOf(query, 'eq')).toContainEqual(['is_active', false]);
+    expect(argsOf(query, 'or')).toEqual(['full_name.ilike.*010*,phone.ilike.*010*']);
+  });
+
+  it('reports a missing count as zero and rethrows errors', async () => {
+    mock = createSupabaseMock(() => ({ data: [] }));
+    expect(await getParentsForAdmin()).toEqual({ items: [], total: 0 });
+
+    mock = createSupabaseMock(() => ({ error: { message: 'boom' } }));
+    await expect(getParentsForAdmin()).rejects.toMatchObject({ message: 'boom' });
+  });
+});
+
+describe('getRequestsForAdmin', () => {
+  beforeEach(() => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'r1' }], count: 3 }));
+  });
+
+  it('lists every request newest first, with the parent and lookups', async () => {
+    const result = await getRequestsForAdmin();
+
+    const [query] = mock.on('requests');
+    expect(result).toEqual({ items: [{ id: 'r1' }], total: 3 });
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    expect(hasCall(query, 'eq')).toBe(false);
+    const [columns, options] = argsOf(query, 'select') as [string, unknown];
+    for (const part of ['parent:profiles(id, full_name, phone, is_active)', 'service_categories(name_ar)', 'governorates(name_ar)']) {
+      expect(columns).toContain(part);
+    }
+    expect(options).toEqual({ count: 'exact' });
+    expect(argsOf(query, 'range')).toEqual([0, ADMIN_PAGE_SIZE - 1]);
+  });
+
+  it('applies status, service, governorate and parent filters', async () => {
+    const parentId = '29dd7ba3-d2f2-4ac5-a310-08ce674c397c';
+    await getRequestsForAdmin({ status: 'removed', serviceCategoryId: 4, governorateId: 7, parentId });
+
+    expect(allArgsOf(mock.on('requests')[0], 'eq')).toEqual([
+      ['status', 'removed'],
+      ['service_category_id', 4],
+      ['governorate_id', 7],
+      ['parent_id', parentId],
+    ]);
+  });
+
+  it('ignores a parent id that is not a uuid', async () => {
+    await getRequestsForAdmin({ parentId: 'abc' });
+
+    expect(hasCall(mock.on('requests')[0], 'eq')).toBe(false);
+  });
+
+  it('searches the description with the cleaned term', async () => {
+    await getRequestsForAdmin({ q: ' قراءة%_ ' });
+
+    expect(argsOf(mock.on('requests')[0], 'ilike')).toEqual(['description', '%قراءة%']);
+  });
+});
+
+describe('pages past the end (NAB-59)', () => {
+  // PostgREST answers PGRST103 for an offset beyond the last row; the second query (range 0-0)
+  // returns the real total for the same filters.
+  function pastTheEnd() {
+    return createSupabaseMock((query) => {
+      const [from] = argsOf(query, 'range') as [number];
+      return from > 0
+        ? { error: { code: 'PGRST103', message: 'Requested range not satisfiable' } }
+        : { data: [{ id: 'x' }], count: 7 };
+    });
+  }
+
+  it('returns an empty parents page with the real total', async () => {
+    mock = pastTheEnd();
+
+    expect(await getParentsForAdmin({ page: 9, active: false })).toEqual({ items: [], total: 7 });
+    const [, retry] = mock.on('profiles');
+    expect(argsOf(retry, 'range')).toEqual([0, 0]);
+    expect(allArgsOf(retry, 'eq')).toContainEqual(['is_active', false]);
+  });
+
+  it('returns an empty requests page with the real total', async () => {
+    mock = pastTheEnd();
+
+    expect(await getRequestsForAdmin({ page: 9, status: 'open' })).toEqual({ items: [], total: 7 });
+    expect(allArgsOf(mock.on('requests')[1], 'eq')).toContainEqual(['status', 'open']);
+  });
+
+  it('still throws other errors', async () => {
+    mock = createSupabaseMock(() => ({ error: { code: '42501', message: 'permission denied' } }));
+
+    await expect(getRequestsForAdmin({ page: 2 })).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('getAdminLogs', () => {
+  const logs = [
+    { id: 3, action: 'request.status_changed', target_type: 'request', target_id: 'r1', details: {} },
+    { id: 2, action: 'profile.active_changed', target_type: 'profile', target_id: 'p1', details: {} },
+    { id: 1, action: 'profile.active_changed', target_type: 'profile', target_id: 'p1', details: {} },
+    { id: 0, action: 'educator.verification_status_changed', target_type: 'educator', target_id: 'gone', details: {} },
+  ];
+
+  beforeEach(() => {
+    mock = createSupabaseMock((query) => {
+      if (query.table === 'admin_logs') return { data: logs, count: 4 };
+      if (query.table === 'requests') return { data: [{ id: 'r1', description: 'نحتاج معلمة' }] };
+      if (query.table === 'profiles') return { data: [{ id: 'p1', full_name: 'منى' }] };
+      return { data: [] };
+    });
+  });
+
+  it('lists entries newest first with the admin name', async () => {
+    await getAdminLogs();
+
+    const [query] = mock.on('admin_logs');
+    expect(String(argsOf(query, 'select')?.[0])).toContain('admin:profiles(full_name)');
+    expect(allArgsOf(query, 'order')).toEqual([['created_at', { ascending: false }], ['id', { ascending: false }]]);
+    expect(hasCall(query, 'eq')).toBe(false);
+  });
+
+  it('filters by action', async () => {
+    await getAdminLogs({ action: 'request.status_changed' });
+
+    expect(argsOf(mock.on('admin_logs')[0], 'eq')).toEqual(['action', 'request.status_changed']);
+  });
+
+  it('looks up target names once per type and marks missing targets', async () => {
+    const { items, total } = await getAdminLogs();
+
+    expect(total).toBe(4);
+    expect(items.map((i) => i.target_label)).toEqual(['نحتاج معلمة', 'منى', 'منى', null]);
+    expect(argsOf(mock.on('profiles')[0], 'in')).toEqual(['id', ['p1']]);
+    expect(argsOf(mock.on('educators')[0], 'in')).toEqual(['id', ['gone']]);
+  });
+
+  it('skips the lookups when the page is empty', async () => {
+    mock = createSupabaseMock(() => ({ data: [], count: 0 }));
+
+    expect(await getAdminLogs()).toEqual({ items: [], total: 0 });
+    expect(mock.queries.map((q) => q.table)).toEqual(['admin_logs']);
   });
 });

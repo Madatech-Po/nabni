@@ -34,6 +34,16 @@ describe('EducatorReviewFilters', () => {
     expect(router.push).toHaveBeenCalledWith('/admin/educators?status=verified');
   });
 
+  it('goes back to the first page when a filter changes', async () => {
+    params = new URLSearchParams('status=pending&page=3');
+    render(<EducatorReviewFilters />);
+
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('مرفوض'));
+
+    expect(router.push).toHaveBeenCalledWith('/admin/educators?status=rejected');
+  });
+
   it('submits the trimmed search and keeps other filters', async () => {
     params = new URLSearchParams('status=rejected');
     render(<EducatorReviewFilters />);

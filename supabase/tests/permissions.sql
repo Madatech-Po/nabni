@@ -54,6 +54,7 @@ DECLARE
   educator_uid uuid := gen_random_uuid();
   admin_uid    uuid := gen_random_uuid();
   edu_id       uuid;
+  req_id       uuid;
   service_id   smallint := (SELECT min(id) FROM public.service_categories);
   level_id     smallint := (SELECT min(id) FROM public.education_levels);
   place_id     smallint := (SELECT min(id) FROM public.teaching_places);
@@ -114,8 +115,22 @@ BEGIN
   PERFORM pg_temp.check(n = 0, 'parent cannot read the educators table (pending educator)');
   INSERT INTO public.requests (parent_id, service_category_id, education_level_id, teaching_place_id, governorate_id,
                                student_age, description, budget, pricing_unit_id)
-    VALUES (parent_uid, service_id, level_id, place_id, gov_id, 5, repeat('ت', 60), 150, unit_id);
+    VALUES (parent_uid, service_id, level_id, place_id, gov_id, 5, repeat('ت', 60), 150, unit_id)
+    RETURNING id INTO req_id;
   PERFORM pg_temp.check(true, 'parent creates a request');
+  UPDATE public.requests SET status = 'closed' WHERE id = req_id;
+  UPDATE public.requests SET status = 'open' WHERE id = req_id;
+  PERFORM pg_temp.check(true, 'parent closes and reopens own request');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.requests SET status = 'removed' WHERE id = %L$q$, req_id)),
+    'parent cannot mark own request removed');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.requests SET parent_id = %L WHERE id = %L$q$, educator_uid, req_id)),
+    'parent cannot move a request to another owner');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.profiles SET is_active = true WHERE id = %L$q$, parent_uid)),
+    'parent cannot change own is_active');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.set_profile_active(%L, false)$q$, parent_uid)),
+    'parent cannot call set_profile_active');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.set_request_status(%L, 'removed')$q$, req_id)),
+    'parent cannot call set_request_status');
   PERFORM pg_temp.check(pg_temp.denied(format(
     $q$INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
        VALUES (%L, %s, %s, %s, 6, repeat('x', 60))$q$, educator_uid, service_id, place_id, gov_id)),
@@ -176,6 +191,64 @@ BEGIN
   PERFORM pg_temp.act_as(NULL);
   SELECT count(*) INTO n FROM public.educator_directory WHERE id = edu_id;
   PERFORM pg_temp.check(n = 0, 'suspended educator leaves the directory');
+
+  -- ---------- Admin: accounts and request moderation (NAB-51) ----------
+  PERFORM pg_temp.act_as(admin_uid);
+  SELECT count(*) INTO n FROM public.profiles WHERE id IN (parent_uid, educator_uid, admin_uid);
+  PERFORM pg_temp.check(n = 3, 'admin reads all profiles');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.set_profile_active(%L, false)$q$, educator_uid)),
+    'set_profile_active refuses educator accounts');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.set_profile_active(%L, false)$q$, admin_uid)),
+    'set_profile_active refuses admin accounts (no self lock-out)');
+  BEGIN
+    PERFORM public.set_request_status(req_id, 'archived');
+    PERFORM pg_temp.check(false, 'set_request_status rejects unknown statuses');
+  EXCEPTION WHEN invalid_parameter_value THEN
+    PERFORM pg_temp.check(true, 'set_request_status rejects unknown statuses');
+  END;
+
+  -- Suspension hides the parent's open requests and blocks their writes.
+  PERFORM public.set_profile_active(parent_uid, false, 'spam');
+  PERFORM public.set_profile_active(parent_uid, false);  -- no-op, not logged
+  PERFORM pg_temp.act_as(NULL);
+  SELECT count(*) INTO n FROM public.requests WHERE id = req_id;
+  PERFORM pg_temp.check(n = 0, 'open requests of a suspended parent leave the public feed');
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format(
+    $q$INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+       VALUES (%L, %s, %s, %s, 6, repeat('x', 60))$q$, parent_uid, service_id, place_id, gov_id)),
+    'suspended parent cannot create a request');
+  UPDATE public.requests SET description = repeat('y', 60) WHERE id = req_id;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check(n = 0, 'suspended parent cannot edit a request');
+  SELECT count(*) INTO n FROM public.requests WHERE id = req_id;
+  PERFORM pg_temp.check(n = 1, 'suspended parent still sees own requests');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_profile_active(parent_uid, true);
+  SELECT count(*) INTO n FROM public.admin_logs WHERE target_id = parent_uid AND action = 'profile.active_changed';
+  PERFORM pg_temp.check(n = 2, 'suspend + reactivate logged once each');
+  PERFORM pg_temp.check(
+    (SELECT details->>'reason' FROM public.admin_logs WHERE target_id = parent_uid ORDER BY id LIMIT 1) = 'spam',
+    'suspension reason stored');
+
+  -- Removing a request hides it from the public and locks it for the owner.
+  PERFORM public.set_request_status(req_id, 'removed', 'offensive');
+  SELECT count(*) INTO n FROM public.admin_logs WHERE target_id = req_id AND action = 'request.status_changed';
+  PERFORM pg_temp.check(n = 1, 'request removal logged');
+  SELECT count(*) INTO n FROM public.requests WHERE id = req_id;
+  PERFORM pg_temp.check(n = 1, 'admin still reads removed requests');
+  PERFORM pg_temp.act_as(NULL);
+  SELECT count(*) INTO n FROM public.requests WHERE id = req_id;
+  PERFORM pg_temp.check(n = 0, 'removed request is not public');
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM pg_temp.check((SELECT status FROM public.requests WHERE id = req_id) = 'removed', 'owner sees the request as removed');
+  UPDATE public.requests SET status = 'open' WHERE id = req_id;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check(n = 0, 'owner cannot reopen a removed request');
+  DELETE FROM public.requests WHERE id = req_id;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check(n = 0, 'owner cannot delete a removed request');
 
   RESET ROLE;
   RAISE NOTICE 'All permission checks passed.';
