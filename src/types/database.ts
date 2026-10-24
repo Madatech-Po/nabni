@@ -28,7 +28,8 @@ type Relationship = {
 export type EducatorGender = 'male' | 'female';
 export type EducatorVerificationStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
 export type UserRole = 'parent' | 'educator' | 'admin';
-export type RequestStatus = 'open' | 'closed' | 'cancelled';
+// 'removed' = hidden by an admin; only admins set it (set_request_status).
+export type RequestStatus = 'open' | 'closed' | 'cancelled' | 'removed';
 
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.15' };
@@ -160,8 +161,8 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
+        // Column grants (NAB-51): status starts as 'open'; parent_id is set on insert only.
         Insert: {
-          id?: string;
           parent_id: string;
           service_category_id: number;
           education_level_id?: number | null;
@@ -174,9 +175,10 @@ export type Database = {
           preferred_educator_gender?: EducatorGender | null;
           budget?: number | null;
           pricing_unit_id?: number | null;
-          status?: RequestStatus;
         };
-        Update: Partial<Database['public']['Tables']['requests']['Insert']>;
+        Update: Partial<Omit<Database['public']['Tables']['requests']['Insert'], 'parent_id'>> & {
+          status?: Exclude<RequestStatus, 'removed'>;
+        };
         Relationships: [
           { foreignKeyName: 'requests_service_category_id_fkey'; columns: ['service_category_id']; isOneToOne: false; referencedRelation: 'service_categories'; referencedColumns: ['id'] },
           { foreignKeyName: 'requests_education_level_id_fkey'; columns: ['education_level_id']; isOneToOne: false; referencedRelation: 'education_levels'; referencedColumns: ['id'] },
@@ -184,6 +186,23 @@ export type Database = {
           { foreignKeyName: 'requests_governorate_id_fkey'; columns: ['governorate_id']; isOneToOne: false; referencedRelation: 'governorates'; referencedColumns: ['id'] },
           { foreignKeyName: 'requests_pricing_unit_id_fkey'; columns: ['pricing_unit_id']; isOneToOne: false; referencedRelation: 'pricing_units'; referencedColumns: ['id'] },
           { foreignKeyName: 'requests_parent_id_fkey'; columns: ['parent_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
+        ];
+      };
+      // Read-only for admins; written only by the admin RPCs.
+      admin_logs: {
+        Row: {
+          id: number;
+          admin_id: string;
+          action: string;
+          target_type: string;
+          target_id: string | null;
+          details: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [
+          { foreignKeyName: 'admin_logs_admin_id_fkey'; columns: ['admin_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
         ];
       };
     };
@@ -213,6 +232,14 @@ export type Database = {
       set_educator_verification: {
         Args: { p_educator_id: string; p_status: EducatorVerificationStatus; p_reason?: string | null };
         Returns: EducatorVerificationStatus;
+      };
+      set_profile_active: {
+        Args: { p_user_id: string; p_active: boolean; p_reason?: string | null };
+        Returns: boolean;
+      };
+      set_request_status: {
+        Args: { p_request_id: string; p_status: RequestStatus; p_reason?: string | null };
+        Returns: RequestStatus;
       };
     };
     Enums: {
