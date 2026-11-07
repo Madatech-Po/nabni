@@ -19,6 +19,7 @@ for (const [role, pages] of [
         await expect(header.getByRole('link', { name: 'لوحتي' })).toBeVisible();
         await expect(header.getByRole('button', { name: 'تسجيل الخروج' })).toBeVisible();
         await expect(header.getByRole('link', { name: 'تسجيل الدخول' })).toHaveCount(0);
+        await expect(header.getByRole('link', { name: 'انضم كمتخصص' })).toHaveCount(0); // NAB-100
       });
     }
 
@@ -31,6 +32,11 @@ for (const [role, pages] of [
     });
   });
 }
+
+test('visitors see "join as educator" in the header (NAB-100)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('banner').getByRole('link', { name: 'انضم كمتخصص' })).toHaveAttribute('href', '/register?role=educator');
+});
 
 test.describe('sign out', () => {
   test.skip(!account('parent'), 'needs the e2e parent account');

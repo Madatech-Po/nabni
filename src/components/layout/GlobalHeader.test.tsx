@@ -35,6 +35,15 @@ describe('GlobalHeader (NAB-93)', () => {
     expect(screen.queryByRole('link', { name: 'إنشاء حساب' })).not.toBeInTheDocument();
   });
 
+  it('offers "join as educator" to visitors only (NAB-100)', () => {
+    const { unmount } = render(<GlobalHeader />);
+    expect(screen.getByRole('link', { name: 'انضم كمتخصص' })).toHaveAttribute('href', '/register?role=educator');
+    unmount();
+
+    render(<GlobalHeader signedIn />);
+    expect(screen.queryByRole('link', { name: 'انضم كمتخصص' })).not.toBeInTheDocument();
+  });
+
   it('always links home from the logo', () => {
     render(<GlobalHeader signedIn />);
 
