@@ -46,6 +46,9 @@ $env:E2E_BROWSER = 'chrome'; $env:E2E_SLOWMO = '500'; npx playwright test offers
 npx playwright test --ui
 ```
 
+In UI mode, run the **setup** project first (it logs in the three e2e accounts and saves their
+sessions); otherwise signed-in tests fail when the saved sessions are missing or expired.
+
 Without `E2E_BROWSER` the tests use Playwright's bundled Chromium (as CI does).
 
 ## Database permission tests
