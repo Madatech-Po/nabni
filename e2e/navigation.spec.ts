@@ -75,6 +75,22 @@ test.describe('phone menu (NAB-99)', () => {
   });
 });
 
+test.describe('admin header (NAB-104)', () => {
+  asRole(test, 'admin');
+
+  test('every admin page links back to the site and offers sign-out', async ({ page }) => {
+    test.slow(); // opens all four admin pages
+    for (const path of ['/admin/educators', '/admin/parents', '/admin/requests', '/admin/logs']) {
+      await page.goto(path);
+      await expect(page.getByRole('link', { name: 'الموقع' })).toHaveAttribute('href', '/');
+      await expect(page.getByRole('button', { name: 'تسجيل الخروج' })).toBeVisible();
+    }
+    await page.getByRole('link', { name: 'الموقع' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('banner').getByRole('link', { name: 'لوحتي' })).toBeVisible();
+  });
+});
+
 test.describe('sign out', () => {
   test.skip(!account('parent'), 'needs the e2e parent account');
 
@@ -93,5 +109,23 @@ test.describe('sign out', () => {
 
     await page.goto('/parent');
     await expect(page).toHaveURL(/\/login\?redirectTo=%2Fparent|\/login\?redirectTo=\/parent/);
+  });
+});
+
+test.describe('admin sign out (NAB-104)', () => {
+  test.skip(!account('admin'), 'needs the e2e admin account');
+
+  test('an admin signs out from the admin header', async ({ page }) => {
+    const credentials = account('admin')!;
+    await page.goto('/login');
+    await page.getByLabel('البريد الإلكتروني').fill(credentials.email);
+    await page.getByLabel('كلمة المرور').fill(credentials.password);
+    await page.getByRole('button', { name: 'دخول' }).click();
+    await page.waitForURL(`**${roleHome.admin}`);
+
+    await page.getByRole('button', { name: 'تسجيل الخروج' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await page.goto('/admin');
+    await expect(page).toHaveURL(/\/login\?redirectTo=/);
   });
 });

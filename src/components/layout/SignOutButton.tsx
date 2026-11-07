@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@mui/material';
+import { Button, type ButtonProps } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 
 // Ends the session and goes back to the home page (NAB-93).
-export default function SignOutButton() {
+/** `variant`, `color` and `sx` let darker headers (admin) restyle it (NAB-104). */
+export default function SignOutButton({ variant = 'outlined', color = 'primary', sx }: Pick<ButtonProps, 'variant' | 'color' | 'sx'>) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +24,7 @@ export default function SignOutButton() {
   }
 
   return (
-    <Button onClick={signOut} disabled={busy} variant="outlined" color="primary" sx={{ borderRadius: 6 }}>
+    <Button onClick={signOut} disabled={busy} variant={variant} color={color} sx={[{ borderRadius: 6 }, ...(Array.isArray(sx) ? sx : [sx])]}>
       تسجيل الخروج
     </Button>
   );

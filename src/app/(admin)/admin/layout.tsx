@@ -2,6 +2,7 @@ import { Box, Container, Stack, Typography } from '@mui/material';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import AdminNav from '@/components/admin/AdminNav';
+import AdminAccountActions from '@/components/admin/AdminAccountActions';
 
 // The middleware only guarantees a signed-in user; the role check lives here so every /admin
 // page is covered. The database enforces the same rule through is_admin() (NAB-37).
@@ -23,9 +24,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
       <Box component="header" sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 2 }}>
         <Container maxWidth="lg">
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 1, md: 4 }} alignItems={{ md: 'center' }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 1.5, md: 4 }} alignItems={{ md: 'center' }}>
             <Typography variant="h6" fontWeight="bold" sx={{ whiteSpace: 'nowrap' }}>لوحة تحكم نبني</Typography>
             <AdminNav />
+            <Box sx={{ flexGrow: 1 }} />
+            <AdminAccountActions />
           </Stack>
         </Container>
       </Box>
