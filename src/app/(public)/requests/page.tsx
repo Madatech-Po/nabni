@@ -18,11 +18,17 @@ async function getViewerOffers(): Promise<{ isEducator: boolean; offered: Set<st
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
   if (profile?.role !== 'educator') return { isEducator: false, offered: new Set() };
 
-  const educator = await getEducatorOfferingState(user.id);
-  return {
-    isEducator: true,
-    offered: educator ? await getRequestIdsWithMyActiveOffer(educator.educatorId) : new Set(),
-  };
+  // The buttons are an extra: if the lookup fails, keep the feed and assume no offers yet
+  // (the offer page checks again before showing the form).
+  try {
+    const educator = await getEducatorOfferingState(user.id);
+    return {
+      isEducator: true,
+      offered: educator ? await getRequestIdsWithMyActiveOffer(educator.educatorId) : new Set(),
+    };
+  } catch {
+    return { isEducator: true, offered: new Set() };
+  }
 }
 
 export default async function RequestsPage({
