@@ -2,8 +2,10 @@
 
 import { AppBar, Toolbar, Typography, Button, Box, Container } from '@mui/material';
 import Link from 'next/link';
+import SignOutButton from './SignOutButton';
 
-export default function GlobalHeader() {
+/** `signedIn` swaps the login/register buttons for the dashboard link and sign-out (NAB-93). */
+export default function GlobalHeader({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <AppBar position="sticky" color="inherit" elevation={1} sx={{ borderBottom: '1px solid #eaeaea' }}>
       <Container maxWidth="xl">
@@ -52,14 +54,23 @@ export default function GlobalHeader() {
           </Box>
 
           {/* Right Actions */}
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button component={Link} href="/login" variant="outlined" color="primary" sx={{ borderRadius: 6 }}>
-              تسجيل الدخول
-            </Button>
-            <Button component={Link} href="/register" variant="contained" color="primary" sx={{ borderRadius: 6, boxShadow: 'none' }}>
-              إنشاء حساب
-            </Button>
-          </Box>
+          {signedIn ? (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button component={Link} href="/dashboard" variant="contained" color="primary" sx={{ borderRadius: 6, boxShadow: 'none' }}>
+                لوحتي
+              </Button>
+              <SignOutButton />
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button component={Link} href="/login" variant="outlined" color="primary" sx={{ borderRadius: 6 }}>
+                تسجيل الدخول
+              </Button>
+              <Button component={Link} href="/register" variant="contained" color="primary" sx={{ borderRadius: 6, boxShadow: 'none' }}>
+                إنشاء حساب
+              </Button>
+            </Box>
+          )}
         </Toolbar>
       </Container>
     </AppBar>
