@@ -24,3 +24,15 @@ describe('targetHref', () => {
     expect(targetHref({ target_type: 'profile', target_id: null })).toBeNull();
   });
 });
+
+describe('offer removals (NAB-86)', () => {
+  it('describes an offer removal in Arabic', () => {
+    expect(describeChange({ action: 'offer.removed', details: { from: 'accepted', to: 'removed' } })).toBe(
+      'مقبول ← أزالته الإدارة'
+    );
+  });
+
+  it('has no admin page to link an offer to', () => {
+    expect(targetHref({ target_type: 'offer', target_id: 'o1' })).toBeNull();
+  });
+});

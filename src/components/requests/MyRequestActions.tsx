@@ -27,7 +27,16 @@ const ACTIONS: Record<OwnStatus, { to: OwnStatus; label: string; color: 'primary
   cancelled: [{ to: 'open', label: 'إعادة فتح', color: 'success' }],
 };
 
-export default function MyRequestActions({ requestId, status }: { requestId: string; status: RequestStatus }) {
+export default function MyRequestActions({
+  requestId,
+  status,
+  pendingOffers,
+}: {
+  requestId: string;
+  status: RequestStatus;
+  /** When given, shows a link to the request's offers with this count. */
+  pendingOffers?: number;
+}) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +66,11 @@ export default function MyRequestActions({ requestId, status }: { requestId: str
         <>
           {error && <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>}
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {pendingOffers !== undefined && (
+              <Button component={Link} href={`/parent/requests/${requestId}`} size="small" variant="contained" color="secondary">
+                العروض{pendingOffers > 0 ? ` (${pendingOffers} جديد)` : ''}
+              </Button>
+            )}
             <Button component={Link} href={`/parent/requests/${requestId}/edit`} size="small" variant="outlined" disabled={saving}>
               تعديل
             </Button>

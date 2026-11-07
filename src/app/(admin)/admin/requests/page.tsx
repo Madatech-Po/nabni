@@ -1,11 +1,12 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 import { ADMIN_PAGE_SIZE, getRequestsForAdmin, REQUEST_STATUSES } from '@/services/admin';
 import { getGovernorates, getServiceCategories } from '@/services/lookups';
 import AdminListFilters from '@/components/admin/AdminListFilters';
 import AdminPagination from '@/components/admin/AdminPagination';
 import RequestModerationActions from '@/components/admin/RequestModerationActions';
+import AdminRequestOffers from '@/components/admin/AdminRequestOffers';
 import { REQUEST_STATUS_COLORS, REQUEST_STATUS_LABELS } from '@/components/admin/requestStatus';
 import type { RequestStatus } from '@/types/database';
 import { formatDate } from '@/utils/formatDate';
@@ -123,6 +124,9 @@ export default async function AdminRequestsPage({
               </Box>
 
               <RequestModerationActions requestId={request.id} status={request.status} />
+
+              <Divider sx={{ my: 2 }} />
+              <AdminRequestOffers offers={request.offers ?? []} />
             </Paper>
           ))}
         </Stack>

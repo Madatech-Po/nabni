@@ -7,6 +7,13 @@ export const ACTION_LABELS: Record<string, string> = {
   'educator.verification_status_changed': 'توثيق معلم',
   'profile.active_changed': 'حساب ولي أمر',
   'request.status_changed': 'حالة طلب',
+  'offer.removed': 'إزالة عرض',
+};
+
+const OFFER_STATUS_LABELS: Record<string, string> = {
+  pending: 'بانتظار الرد',
+  accepted: 'مقبول',
+  removed: 'أزالته الإدارة',
 };
 
 // Turns the stored from/to values into Arabic for each kind of action.
@@ -19,6 +26,9 @@ function valueLabel(action: string, value: unknown): string {
   }
   if (action === 'request.status_changed') {
     return REQUEST_STATUS_LABELS[value as RequestStatus] ?? String(value);
+  }
+  if (action === 'offer.removed') {
+    return OFFER_STATUS_LABELS[String(value)] ?? String(value);
   }
   return String(value);
 }

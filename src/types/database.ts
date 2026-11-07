@@ -30,6 +30,8 @@ export type EducatorVerificationStatus = 'pending' | 'verified' | 'rejected' | '
 export type UserRole = 'parent' | 'educator' | 'admin';
 // 'removed' = hidden by an admin; only admins set it (set_request_status).
 export type RequestStatus = 'open' | 'closed' | 'cancelled' | 'removed';
+// Offers change status only through withdraw_offer / accept_offer / decline_offer (NAB-80).
+export type OfferStatus = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'archived' | 'removed';
 
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.15' };
@@ -188,6 +190,43 @@ export type Database = {
           { foreignKeyName: 'requests_parent_id_fkey'; columns: ['parent_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
         ];
       };
+      offers: {
+        Row: {
+          id: string;
+          request_id: string;
+          educator_id: string;
+          price: number;
+          pricing_unit_id: number;
+          schedule: string;
+          start_date: string | null;
+          notes: string | null;
+          status: OfferStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        // Column grants: educators set the content; status is never written directly.
+        Insert: {
+          request_id: string;
+          educator_id: string;
+          price: number;
+          pricing_unit_id: number;
+          schedule: string;
+          start_date?: string | null;
+          notes?: string | null;
+        };
+        Update: {
+          price?: number;
+          pricing_unit_id?: number;
+          schedule?: string;
+          start_date?: string | null;
+          notes?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: 'offers_request_id_fkey'; columns: ['request_id']; isOneToOne: false; referencedRelation: 'requests'; referencedColumns: ['id'] },
+          { foreignKeyName: 'offers_educator_id_fkey'; columns: ['educator_id']; isOneToOne: false; referencedRelation: 'educators'; referencedColumns: ['id'] },
+          { foreignKeyName: 'offers_pricing_unit_id_fkey'; columns: ['pricing_unit_id']; isOneToOne: false; referencedRelation: 'pricing_units'; referencedColumns: ['id'] },
+        ];
+      };
       // Read-only for admins; written only by the admin RPCs.
       admin_logs: {
         Row: {
@@ -241,10 +280,20 @@ export type Database = {
         Args: { p_request_id: string; p_status: RequestStatus; p_reason?: string | null };
         Returns: RequestStatus;
       };
+      withdraw_offer: { Args: { p_offer_id: string }; Returns: OfferStatus };
+      accept_offer: { Args: { p_offer_id: string }; Returns: OfferStatus };
+      decline_offer: { Args: { p_offer_id: string }; Returns: OfferStatus };
+      get_offer_contact: {
+        Args: { p_offer_id: string };
+        Returns: { full_name: string; phone: string | null; whatsapp_number: string | null }[];
+      };
+      my_offering_educator_id: { Args: Record<string, never>; Returns: string | null };
+      remove_offer: { Args: { p_offer_id: string; p_reason?: string | null }; Returns: OfferStatus };
     };
     Enums: {
       educator_gender: EducatorGender;
       educator_verification_status: EducatorVerificationStatus;
+      offer_status: OfferStatus;
     };
     CompositeTypes: { [_ in never]: never };
   };

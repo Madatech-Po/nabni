@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
-import type { EducatorGender, EducatorVerificationStatus, RequestStatus } from '@/types/database';
+import type { EducatorGender, EducatorVerificationStatus, OfferStatus, RequestStatus } from '@/types/database';
 
 export const VERIFICATION_STATUSES: EducatorVerificationStatus[] = ['pending', 'verified', 'rejected', 'suspended'];
 
@@ -148,6 +148,16 @@ export interface AdminRequestItem {
   service_category: { name_ar: string } | null;
   governorate: { name_ar: string } | null;
   pricing_unit: { name_ar: string } | null;
+  offers: AdminOfferItem[];
+}
+
+export interface AdminOfferItem {
+  id: string;
+  price: number;
+  status: OfferStatus;
+  created_at: string;
+  educator: { full_name: string } | null;
+  pricing_unit: { name_ar: string } | null;
 }
 
 export interface AdminRequestFilters {
@@ -172,7 +182,8 @@ export async function getRequestsForAdmin(filters: AdminRequestFilters = {}): Pr
          parent:profiles(id, full_name, phone, is_active),
          service_category:service_categories(name_ar),
          governorate:governorates(name_ar),
-         pricing_unit:pricing_units(name_ar)`,
+         pricing_unit:pricing_units(name_ar),
+         offers(id, price, status, created_at, educator:educators(full_name), pricing_unit:pricing_units(name_ar))`,
         { count: 'exact' }
       )
       .order('created_at', { ascending: false });
@@ -191,6 +202,7 @@ export const ADMIN_LOG_ACTIONS = [
   'educator.verification_status_changed',
   'profile.active_changed',
   'request.status_changed',
+  'offer.removed',
 ] as const;
 export type AdminLogAction = (typeof ADMIN_LOG_ACTIONS)[number];
 
@@ -207,10 +219,11 @@ export interface AdminLogItem {
 }
 
 // Where each target type's display name comes from.
-const TARGET_LABELS: Record<string, { table: 'educators' | 'profiles' | 'requests'; column: string }> = {
+const TARGET_LABELS: Record<string, { table: 'educators' | 'profiles' | 'requests' | 'offers'; column: string }> = {
   educator: { table: 'educators', column: 'full_name' },
   profile: { table: 'profiles', column: 'full_name' },
   request: { table: 'requests', column: 'description' },
+  offer: { table: 'offers', column: 'schedule' },
 };
 
 export async function getAdminLogs(

@@ -14,7 +14,7 @@ export interface AdminAction<T extends string | boolean> {
   needsReason: boolean;
 }
 
-type AdminRpc = 'set_educator_verification' | 'set_profile_active' | 'set_request_status';
+type AdminRpc = 'set_educator_verification' | 'set_profile_active' | 'set_request_status' | 'remove_offer';
 
 // Buttons for one admin RPC. Every RPC checks is_admin() and writes admin_logs itself, so
 // this only collects the reason and refreshes the page on success.
@@ -28,8 +28,8 @@ export default function AdminActions<T extends string | boolean>({
   rpc: AdminRpc;
   /** The RPC's id argument, e.g. { p_user_id: id }. */
   args: Record<string, string>;
-  /** Name of the RPC argument that receives `action.to`. */
-  statusArg: string;
+  /** Name of the RPC argument that receives `action.to`; omit for RPCs with a single outcome. */
+  statusArg?: string;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<AdminAction<T> | null>(null);
@@ -42,7 +42,7 @@ export default function AdminActions<T extends string | boolean>({
     setError(null);
     const { error: rpcError } = await createClient().rpc(rpc, {
       ...args,
-      [statusArg]: action.to,
+      ...(statusArg ? { [statusArg]: action.to } : {}),
       p_reason: reasonText.trim() || null,
     } as never);
     setSaving(false);

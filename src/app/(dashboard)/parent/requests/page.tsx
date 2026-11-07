@@ -39,7 +39,11 @@ export default async function MyRequestsPage() {
             <Grid item xs={12} md={6} key={request.id}>
               <RequestCard
                 request={request}
-                footer={<MyRequestActions requestId={request.id} status={request.status} />}
+                footer={<MyRequestActions
+                    requestId={request.id}
+                    status={request.status}
+                    pendingOffers={(request.offers ?? []).filter((o) => o.status === 'pending').length}
+                  />}
               />
             </Grid>
           ))}

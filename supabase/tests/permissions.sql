@@ -31,6 +31,17 @@ EXCEPTION WHEN insufficient_privilege THEN
 END;
 $$;
 
+-- Runs `sql` and reports whether it failed with the given SQLSTATE (e.g. '23505').
+CREATE FUNCTION pg_temp.fails_with(sql text, state text) RETURNS boolean
+LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE sql;
+  RETURN false;
+EXCEPTION WHEN OTHERS THEN
+  RETURN SQLSTATE = state;
+END;
+$$;
+
 CREATE FUNCTION pg_temp.act_as(uid uuid) RETURNS void
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -45,7 +56,8 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION pg_temp.check(boolean, text), pg_temp.denied(text), pg_temp.act_as(uuid)
+GRANT EXECUTE ON FUNCTION pg_temp.check(boolean, text), pg_temp.denied(text), pg_temp.act_as(uuid),
+  pg_temp.fails_with(text, text)
   TO anon, authenticated;
 
 DO $$
@@ -55,6 +67,13 @@ DECLARE
   admin_uid    uuid := gen_random_uuid();
   edu_id       uuid;
   req_id       uuid;
+  educator2_uid uuid := gen_random_uuid();
+  edu2_id      uuid;
+  req2_id      uuid;
+  req3_id      uuid;
+  offer1_id    uuid;
+  offer2_id    uuid;
+  offer3_id    uuid;
   service_id   smallint := (SELECT min(id) FROM public.service_categories);
   level_id     smallint := (SELECT min(id) FROM public.education_levels);
   place_id     smallint := (SELECT min(id) FROM public.teaching_places);
@@ -249,6 +268,136 @@ BEGIN
   DELETE FROM public.requests WHERE id = req_id;
   GET DIAGNOSTICS n = ROW_COUNT;
   PERFORM pg_temp.check(n = 0, 'owner cannot delete a removed request');
+
+  -- ---------- Offers (NAB-80) ----------
+  RESET ROLE;
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
+    (educator2_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-educator2@example.invalid',
+     '{"full_name":"Second Educator","role":"educator"}', now(), now());
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu_id, 'verified');
+  PERFORM pg_temp.act_as(educator2_uid);
+  INSERT INTO public.educators (user_id, full_name, phone, governorate_id, gender)
+    VALUES (educator2_uid, 'Second Educator', '01188880000', gov_id, 'male') RETURNING id INTO edu2_id;
+  PERFORM pg_temp.act_as(parent_uid);
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (parent_uid, service_id, place_id, gov_id, 6, repeat('ع', 60)) RETURNING id INTO req2_id;
+
+  -- Who may offer
+  PERFORM pg_temp.act_as(educator2_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format($q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (%L, %L, 100, %s, 'Any day')$q$, req2_id, edu2_id, unit_id)),
+    'unverified educator cannot offer');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'verified');
+
+  PERFORM pg_temp.act_as(educator_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule, notes)
+    VALUES (req2_id, edu_id, 200, unit_id, 'Sat and Tue evenings', 'note') RETURNING id INTO offer1_id;
+  PERFORM pg_temp.check(true, 'verified educator offers on an open request');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (%L, %L, 100, %s, 'Any day')$q$, req2_id, edu_id, unit_id), '23505'),
+    'one active offer per educator per request');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (%L, %L, 100, %s, 'Any day')$q$, req2_id, edu2_id, unit_id)),
+    'educator cannot offer in another educator name');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (%L, %L, 100, %s, 'Any day')$q$, req_id, edu_id, unit_id)),
+    'no offers on a removed request');
+  PERFORM pg_temp.check(pg_temp.denied(format(
+    $q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule, status) VALUES (%L, %L, 100, %s, 'Any day', 'accepted')$q$,
+    req2_id, edu_id, unit_id)), 'educator cannot choose the offer status');
+  UPDATE public.offers SET price = 180 WHERE id = offer1_id;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check(n = 1, 'educator edits a pending offer');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.offers SET status = 'accepted' WHERE id = %L$q$, offer1_id)),
+    'educator cannot accept their own offer by update');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.accept_offer(%L)$q$, offer1_id), 'P0002'),
+    'educator cannot call accept_offer');
+
+  -- Blind bidding
+  PERFORM pg_temp.act_as(educator2_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req2_id, edu2_id, 150, unit_id, 'Weekends') RETURNING id INTO offer2_id;
+  SELECT count(*) INTO n FROM public.offers WHERE request_id = req2_id;
+  PERFORM pg_temp.check(n = 1, 'educators only see their own offers (blind bidding)');
+  SELECT count(*) INTO n FROM public.get_offer_contact(offer1_id);
+  PERFORM pg_temp.check(n = 0, 'no contacts from someone else offer');
+
+  PERFORM pg_temp.act_as(NULL);
+  PERFORM pg_temp.check(pg_temp.denied('SELECT count(*) FROM public.offers'), 'anon cannot read offers');
+
+  -- The parent compares and accepts
+  PERFORM pg_temp.act_as(parent_uid);
+  SELECT count(*) INTO n FROM public.offers WHERE request_id = req2_id;
+  PERFORM pg_temp.check(n = 2, 'parent sees every offer on their request');
+  SELECT count(*) INTO n FROM public.get_offer_contact(offer1_id);
+  PERFORM pg_temp.check(n = 0, 'no contacts before acceptance');
+  UPDATE public.offers SET price = 1 WHERE id = offer1_id;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check(n = 0, 'parent cannot edit an offer');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.withdraw_offer(%L)$q$, offer1_id), 'P0002'),
+    'parent cannot withdraw an educator offer');
+  PERFORM public.accept_offer(offer1_id);
+  PERFORM pg_temp.check((SELECT status FROM public.offers WHERE id = offer1_id) = 'accepted', 'accepted offer is marked accepted');
+  PERFORM pg_temp.check((SELECT status FROM public.offers WHERE id = offer2_id) = 'declined', 'other pending offers are declined');
+  PERFORM pg_temp.check((SELECT status FROM public.requests WHERE id = req2_id) = 'closed', 'accepting closes the request');
+  PERFORM pg_temp.check((SELECT phone FROM public.get_offer_contact(offer1_id)) = '01099990000',
+    'parent gets the accepted educator phone');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.accept_offer(%L)$q$, offer2_id), '23514'),
+    'a closed request cannot accept another offer');
+
+  PERFORM pg_temp.act_as(educator_uid);
+  PERFORM pg_temp.check((SELECT full_name FROM public.get_offer_contact(offer1_id)) = 'Test Parent',
+    'accepted educator gets the parent contact');
+  SELECT count(*) INTO n FROM public.requests WHERE id = req2_id;
+  PERFORM pg_temp.check(n = 1, 'educator still sees a closed request they offered on');
+
+  PERFORM pg_temp.act_as(educator2_uid);
+  SELECT count(*) INTO n FROM public.get_offer_contact(offer1_id);
+  PERFORM pg_temp.check(n = 0, 'declined educator gets no contacts');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.withdraw_offer(%L)$q$, offer2_id), '23514'),
+    'a declined offer cannot be withdrawn');
+
+  -- Closing a request archives its pending offers; a withdrawn offer can be sent again
+  PERFORM pg_temp.act_as(parent_uid);
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (parent_uid, service_id, place_id, gov_id, 7, repeat('م', 60)) RETURNING id INTO req3_id;
+  PERFORM pg_temp.act_as(educator2_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req3_id, edu2_id, 120, unit_id, 'Mornings') RETURNING id INTO offer3_id;
+  PERFORM public.withdraw_offer(offer3_id);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req3_id, edu2_id, 110, unit_id, 'Mornings') RETURNING id INTO offer3_id;
+  PERFORM pg_temp.check(true, 'educator can offer again after withdrawing');
+  PERFORM pg_temp.act_as(parent_uid);
+  UPDATE public.requests SET status = 'cancelled' WHERE id = req3_id;
+  PERFORM pg_temp.act_as(educator2_uid);
+  PERFORM pg_temp.check((SELECT status FROM public.offers WHERE id = offer3_id) = 'archived',
+    'cancelling a request archives its pending offers');
+
+  -- A suspended educator can no longer offer
+  PERFORM pg_temp.act_as(parent_uid);
+  UPDATE public.requests SET status = 'open' WHERE id = req3_id;
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'suspended', 'test');
+  PERFORM pg_temp.act_as(educator2_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format($q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (%L, %L, 100, %s, 'Any day')$q$, req3_id, edu2_id, unit_id)),
+    'suspended educator cannot offer');
+
+  -- Admins remove offers (NAB-86)
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.remove_offer(%L, 'x')$q$, offer1_id)),
+    'parent cannot remove offers');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.remove_offer(offer1_id, ' spam ');
+  PERFORM public.remove_offer(offer1_id);  -- already removed: no-op, not logged again
+  PERFORM pg_temp.check((SELECT status FROM public.offers WHERE id = offer1_id) = 'removed', 'admin removes an accepted offer');
+  SELECT count(*) INTO n FROM public.admin_logs WHERE target_id = offer1_id AND action = 'offer.removed';
+  PERFORM pg_temp.check(n = 1, 'offer removal logged once');
+  PERFORM pg_temp.check((SELECT details->>'reason' FROM public.admin_logs WHERE target_id = offer1_id) = 'spam',
+    'removal reason stored trimmed');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.remove_offer(%L)$q$, offer2_id), '23514'),
+    'declined offers are not removable');
+  PERFORM pg_temp.act_as(parent_uid);
+  SELECT count(*) INTO n FROM public.get_offer_contact(offer1_id);
+  PERFORM pg_temp.check(n = 0, 'removing an accepted offer takes the contacts away');
 
   RESET ROLE;
   RAISE NOTICE 'All permission checks passed.';

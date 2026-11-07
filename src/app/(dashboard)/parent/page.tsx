@@ -65,7 +65,11 @@ export default async function ParentDashboard() {
         <Grid container spacing={4}>
           {requests.slice(0, LATEST).map((request) => (
             <Grid item xs={12} md={6} key={request.id}>
-              <RequestCard request={request} footer={<MyRequestActions requestId={request.id} status={request.status} />} />
+              <RequestCard request={request} footer={<MyRequestActions
+                    requestId={request.id}
+                    status={request.status}
+                    pendingOffers={(request.offers ?? []).filter((o) => o.status === 'pending').length}
+                  />} />
             </Grid>
           ))}
         </Grid>
