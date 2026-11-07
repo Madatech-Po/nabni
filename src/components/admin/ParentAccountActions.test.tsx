@@ -53,3 +53,46 @@ describe('ParentAccountActions', () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
 });
+
+describe('reason dialog (NAB-78)', () => {
+  it('cannot be confirmed without a reason', async () => {
+    render(<ParentAccountActions userId="p1" active />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'إيقاف الحساب' }));
+    const confirm = screen.getByRole('button', { name: 'تأكيد' });
+    expect(confirm).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText(/السبب/), '   ');
+    expect(confirm).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText(/السبب/), 'spam');
+    expect(confirm).toBeEnabled();
+  });
+
+  it('shows a failure inside the open dialog, not behind it', async () => {
+    mock.setRpcResult({ error: { message: 'Only admins can change account status' } });
+    render(<ParentAccountActions userId="p1" active />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'إيقاف الحساب' }));
+    await userEvent.type(screen.getByLabelText(/السبب/), 'spam');
+    await userEvent.click(screen.getByRole('button', { name: 'تأكيد' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Only admins can change account status');
+    expect(screen.getByRole('dialog')).toContainElement(alert);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('clears the error when the dialog is cancelled', async () => {
+    mock.setRpcResult({ error: { message: 'boom' } });
+    render(<ParentAccountActions userId="p1" active />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'إيقاف الحساب' }));
+    await userEvent.type(screen.getByLabelText(/السبب/), 'spam');
+    await userEvent.click(screen.getByRole('button', { name: 'تأكيد' }));
+    await screen.findByRole('alert');
+    await userEvent.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+});
