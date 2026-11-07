@@ -12,9 +12,14 @@ export default function SignOutButton() {
 
   async function signOut() {
     setBusy(true);
-    await createClient().auth.signOut({ scope: 'local' }); // this browser only
-    router.push('/');
-    router.refresh();
+    try {
+      const { error } = await createClient().auth.signOut({ scope: 'local' }); // this browser only
+      if (error) throw error;
+      router.push('/');
+      router.refresh();
+    } catch {
+      setBusy(false); // still signed in: let them try again (NAB-94)
+    }
   }
 
   return (
