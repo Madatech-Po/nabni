@@ -16,7 +16,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
-  workers: isCI ? 2 : undefined,
+  // The dev server compiles pages on first visit and breaks under heavy parallel
+  // load, and every test talks to the live project: keep it to two workers.
+  workers: 2,
+  expect: { timeout: 10_000 },
   reporter: isCI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL,

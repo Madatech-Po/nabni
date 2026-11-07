@@ -1,14 +1,15 @@
 import { test, expect, type Page } from '@playwright/test';
 import { asRole } from './support/accounts';
-import { deleteE2eRequests, e2eText } from './support/data';
+import { deleteE2eRequests, e2eText, sweepStaleE2eRequests } from './support/data';
 
 // The e2e parent posts, edits, closes, reopens and cancels a request (NAB-72).
 test.describe('parent request flow', () => {
   asRole(test, 'parent');
   test.describe.configure({ mode: 'serial' });
 
-  test.beforeAll(deleteE2eRequests); // leftovers from an interrupted run
-  test.afterEach(deleteE2eRequests);
+  let marker = '';
+  test.beforeAll(sweepStaleE2eRequests);
+  test.afterEach(async () => { if (marker) await deleteE2eRequests({ prefix: marker }); });
 
   /** Picks the first real option of an MUI select. */
   async function pickFirst(page: Page, label: RegExp) {
@@ -23,7 +24,7 @@ test.describe('parent request flow', () => {
   }
 
   test('post, see, edit, close, reopen and cancel a request', async ({ page }) => {
-    const marker = e2eText('طلب اختبار');
+    marker = e2eText('طلب اختبار');
     const description = `${marker} — نحتاج متابعة أسبوعية لطفل في المرحلة الابتدائية بعد المدرسة.`;
 
     // Post

@@ -37,7 +37,7 @@ for (const { path, heading } of pages) {
     await expect(h1).toBeVisible();
     if (heading) await expect(h1).toHaveText(heading);
 
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('load'); // not networkidle: Next keeps prefetching links
     expect(errors).toEqual([]);
   });
 }
@@ -46,7 +46,7 @@ test.describe('no contact details on public pages', () => {
   for (const path of ['/', '/educators', '/requests']) {
     test(`${path} shows no phone numbers or WhatsApp / call links`, async ({ page }) => {
       await page.goto(path);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('load'); // not networkidle: Next keeps prefetching links
 
       const text = await page.locator('body').innerText();
       expect(text).not.toMatch(PHONE_RE);
