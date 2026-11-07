@@ -71,6 +71,7 @@ test.describe('admin moderation', () => {
   test.afterEach(async () => { if (marker) await deleteE2eRequests({ prefix: marker }); });
 
   test('hides and un-hides the e2e parent\'s request, and logs both', async ({ page }) => {
+    test.slow(); // a long multi-page flow; the dev server compiles pages on first visit
     marker = e2eText('طلب للإشراف');
     await createE2eRequest(`${marker} — طلب أنشأه اختبار آلي لتجربة الإخفاء من لوحة الإدارة.`);
 

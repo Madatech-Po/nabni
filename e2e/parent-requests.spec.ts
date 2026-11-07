@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { asRole } from './support/accounts';
 import { deleteE2eRequests, e2eText, sweepStaleE2eRequests } from './support/data';
 
@@ -23,7 +23,16 @@ test.describe('parent request flow', () => {
     return page.locator('.MuiCard-root', { hasText: text });
   }
 
+  /** Clicks a status button and waits until Supabase has saved the change. */
+  async function changeStatus(page: Page, button: Locator) {
+    await Promise.all([
+      page.waitForResponse((r) => r.request().method() === 'PATCH' && r.url().includes('/rest/v1/requests') && r.ok()),
+      button.click(),
+    ]);
+  }
+
   test('post, see, edit, close, reopen and cancel a request', async ({ page }) => {
+    test.slow(); // a long multi-page flow; the dev server compiles pages on first visit
     marker = e2eText('طلب اختبار');
     const description = `${marker} — نحتاج متابعة أسبوعية لطفل في المرحلة الابتدائية بعد المدرسة.`;
 
@@ -58,13 +67,13 @@ test.describe('parent request flow', () => {
     await expect(card(page, marker).getByText(edited)).toBeVisible();
 
     // Close, reopen, cancel
-    await myCard.getByRole('button', { name: 'إغلاق الطلب' }).click();
+    await changeStatus(page, myCard.getByRole('button', { name: 'إغلاق الطلب' }));
     await expect(myCard.getByText('مغلق', { exact: true })).toBeVisible();
 
-    await myCard.getByRole('button', { name: 'إعادة فتح' }).click();
+    await changeStatus(page, myCard.getByRole('button', { name: 'إعادة فتح' }));
     await expect(myCard.getByText('مفتوح — يظهر للمتخصصين')).toBeVisible();
 
-    await myCard.getByRole('button', { name: 'إلغاء الطلب' }).click();
+    await changeStatus(page, myCard.getByRole('button', { name: 'إلغاء الطلب' }));
     await expect(myCard.getByText('ملغي', { exact: true })).toBeVisible();
 
     // A cancelled request leaves the public feed
