@@ -19,18 +19,17 @@ export default function GlobalFooter() {
               روابط سريعة
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <MuiLink component={Link} href="/tutors" color="text.secondary" underline="hover">تصفح المعلمين</MuiLink>
+              <MuiLink component={Link} href="/educators" color="text.secondary" underline="hover">تصفح المعلمين</MuiLink>
               <MuiLink component={Link} href="/about" color="text.secondary" underline="hover">عن المنصة</MuiLink>
               <MuiLink component={Link} href="/faq" color="text.secondary" underline="hover">الأسئلة الشائعة</MuiLink>
             </Box>
           </Grid>
           <Grid item xs={12} sm={4}>
             <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              الشروط والخصوصية
+              تواصل
             </Typography>
+            {/* Privacy policy and terms links come back once those pages are written (NAB-89). */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <MuiLink component={Link} href="/privacy" color="text.secondary" underline="hover">سياسة الخصوصية</MuiLink>
-              <MuiLink component={Link} href="/terms" color="text.secondary" underline="hover">الشروط والأحكام</MuiLink>
               <MuiLink component={Link} href="/contact" color="text.secondary" underline="hover">تواصل معنا</MuiLink>
             </Box>
           </Grid>
