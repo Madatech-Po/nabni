@@ -100,3 +100,26 @@ export async function getMyRequestForEdit(parentId: string, requestId: string): 
   const { status: _status, ...input } = data;
   return input as RequestInput;
 }
+
+/** One open request for the offer page; null if it isn't open (or the id is malformed). */
+export async function getOpenRequest(requestId: string): Promise<RequestFeedItem | null> {
+  if (!UUID_RE.test(requestId)) return null;
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('requests')
+    .select(
+      `id, student_age, description, preferred_educator_gender, budget, area, created_at,
+       service_category:service_categories(name_ar),
+       education_level:education_levels(name_ar),
+       teaching_place:teaching_places(name_ar),
+       governorate:governorates(name_ar),
+       pricing_unit:pricing_units(name_ar)`
+    )
+    .eq('id', requestId)
+    .eq('status', 'open')
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as unknown as RequestFeedItem) ?? null;
+}
