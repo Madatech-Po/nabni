@@ -32,9 +32,9 @@ test.describe('offers flow', () => {
     return page.locator('.MuiPaper-outlined', { hasText: text });
   }
 
+  /** Tomorrow as YYYY-MM-DD on the Cairo calendar, which the offer form validates against. */
   function tomorrow(): string {
-    const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    return d.toISOString().slice(0, 10);
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date(Date.now() + 24 * 60 * 60 * 1000));
   }
 
   async function sendOffer(educator: Page, text: string, price: string, schedule: string) {
