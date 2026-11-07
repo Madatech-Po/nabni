@@ -1,41 +1,64 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Button, TextField, Typography, Alert, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { Box, Button, TextField, Alert, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { authErrorMessage } from '@/utils/authErrors';
+import {
+  MIN_PASSWORD,
+  validateRegisterForm,
+  type RegisterFormErrors,
+  type RegisterFormValues,
+} from './registerFormValues';
+
+// Emails and passwords are Latin text: keep them left-to-right inside the RTL page.
+const ltrInput = { dir: 'ltr' as const, style: { textAlign: 'left' as const } };
 
 export default function RegisterForm() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [values, setValues] = useState<RegisterFormValues>({ firstName: '', lastName: '', email: '', password: '' });
   const [role, setRole] = useState('parent');
+  const [errors, setErrors] = useState<RegisterFormErrors>({});
   const [error, setError] = useState<string | null>(null);
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
   const redirectTo = searchParams.get('redirectTo') || '/dashboard';
 
+  const setField = (field: keyof RegisterFormValues) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValues((current) => ({ ...current, [field]: e.target.value }));
+    if (errors[field]) setErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
+    const found = validateRegisterForm(values);
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+
+    setLoading(true);
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: values.email.trim(),
+      password: values.password,
       options: {
         data: {
-          full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          full_name: `${values.firstName.trim()} ${values.lastName.trim()}`.trim(),
           role: role,
         },
       },
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(authErrorMessage(signUpError));
+      setLoading(false);
+    } else if (!data.session) {
+      // Email confirmation is on: there is no session until the link is clicked.
+      setConfirmEmailSent(true);
       setLoading(false);
     } else {
       router.push(redirectTo);
@@ -43,8 +66,17 @@ export default function RegisterForm() {
     }
   };
 
+  if (confirmEmailSent) {
+    return (
+      <Alert severity="success">
+        تم إنشاء حسابك. أرسلنا رسالة تأكيد إلى {values.email.trim()} — افتحها واضغط على الرابط، ثم{' '}
+        <Link href="/login">سجّل الدخول</Link>.
+      </Alert>
+    );
+  }
+
   return (
-    <Box component="form" onSubmit={handleRegister} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box component="form" noValidate onSubmit={handleRegister} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {error && <Alert severity="error">{error}</Alert>}
       <Box sx={{ display: 'flex', gap: 2 }}>
         <TextField
@@ -52,8 +84,10 @@ export default function RegisterForm() {
           variant="outlined"
           fullWidth
           required
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
+          value={values.firstName}
+          onChange={setField('firstName')}
+          error={Boolean(errors.firstName)}
+          helperText={errors.firstName}
           disabled={loading}
         />
         <TextField
@@ -61,8 +95,10 @@ export default function RegisterForm() {
           variant="outlined"
           fullWidth
           required
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
+          value={values.lastName}
+          onChange={setField('lastName')}
+          error={Boolean(errors.lastName)}
+          helperText={errors.lastName}
           disabled={loading}
         />
       </Box>
@@ -70,20 +106,28 @@ export default function RegisterForm() {
         label="البريد الإلكتروني"
         variant="outlined"
         type="email"
+        autoComplete="email"
         fullWidth
         required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        value={values.email}
+        onChange={setField('email')}
+        error={Boolean(errors.email)}
+        helperText={errors.email}
+        inputProps={ltrInput}
         disabled={loading}
       />
       <TextField
         label="كلمة المرور"
         variant="outlined"
         type="password"
+        autoComplete="new-password"
         fullWidth
         required
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        value={values.password}
+        onChange={setField('password')}
+        error={Boolean(errors.password)}
+        helperText={errors.password ?? `${MIN_PASSWORD} أحرف على الأقل، بحروف إنجليزية أو أرقام`}
+        inputProps={ltrInput}
         disabled={loading}
       />
       <FormControl fullWidth>
