@@ -7,7 +7,8 @@ import { loadEnvConfig } from '@next/env';
 loadEnvConfig(process.cwd());
 
 const isCI = !!process.env.CI;
-const port = 3000;
+// E2E_PORT lets a second checkout run its own server next to `npm run dev` on 3000.
+const port = Number(process.env.E2E_PORT ?? 3000);
 const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
@@ -30,7 +31,7 @@ export default defineConfig({
   ],
   webServer: {
     // CI tests the production build; locally an already running `npm run dev` is reused.
-    command: isCI ? 'npm run build && npm run start' : 'npm run dev',
+    command: isCI ? `npm run build && npm run start -- -p ${port}` : `npm run dev -- -p ${port}`,
     url: baseURL,
     reuseExistingServer: !isCI,
     timeout: 180_000,

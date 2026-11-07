@@ -9,7 +9,7 @@ export const roles: Role[] = ['parent', 'educator', 'admin'];
 export const roleHome: Record<Role, string> = {
   parent: '/parent',
   educator: '/teacher',
-  admin: '/admin',
+  admin: '/admin/educators', // /admin itself redirects here (admin/page.tsx)
 };
 
 // E2E accounts live on the live Supabase project; their credentials come from
