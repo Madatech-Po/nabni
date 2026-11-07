@@ -60,3 +60,17 @@ describe('MyRequestActions', () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
 });
+
+describe('MyRequestActions offers link (NAB-83)', () => {
+  it('links to the offers and shows how many are new', () => {
+    render(<MyRequestActions requestId="r1" status="open" pendingOffers={2} />);
+
+    expect(screen.getByRole('link', { name: 'العروض (2 جديد)' })).toHaveAttribute('href', '/parent/requests/r1');
+  });
+
+  it('still links to the offers when none are new', () => {
+    render(<MyRequestActions requestId="r1" status="closed" pendingOffers={0} />);
+
+    expect(screen.getByRole('link', { name: 'العروض' })).toHaveAttribute('href', '/parent/requests/r1');
+  });
+});

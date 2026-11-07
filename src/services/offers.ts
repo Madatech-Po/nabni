@@ -98,3 +98,52 @@ export async function getMyPendingOffer(educatorId: string, offerId: string): Pr
   if (error) throw error;
   return (data as unknown as MyOfferItem) ?? null;
 }
+
+export interface OfferForParent {
+  id: string;
+  price: number;
+  schedule: string;
+  start_date: string | null;
+  notes: string | null;
+  status: OfferStatus;
+  created_at: string;
+  pricing_unit: { name_ar: string } | null;
+  /** Public directory data; null if the educator is no longer listed (e.g. suspended). */
+  educator: {
+    id: string;
+    full_name: string;
+    profile_image: string | null;
+    experience_years: number | null;
+    gender: string | null;
+    governorate_name_ar: string | null;
+    bio: string | null;
+  } | null;
+}
+
+/**
+ * Offers on one of the parent's own requests, oldest first, with each educator's public
+ * profile. Parents can't read the educators table (it holds phone numbers), so educator
+ * details come from the public educator_directory view.
+ */
+export async function getOffersOnMyRequest(requestId: string): Promise<OfferForParent[]> {
+  const supabase = createClient();
+  const { data: offers, error } = await supabase
+    .from('offers')
+    .select('id, price, schedule, start_date, notes, status, created_at, educator_id, pricing_unit:pricing_units(name_ar)')
+    .eq('request_id', requestId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+
+  const rows = (offers || []) as unknown as (Omit<OfferForParent, 'educator'> & { educator_id: string })[];
+  const educatorIds = Array.from(new Set(rows.map((o) => o.educator_id)));
+  if (educatorIds.length === 0) return [];
+
+  const { data: educators, error: directoryError } = await supabase
+    .from('educator_directory')
+    .select('id, full_name, profile_image, experience_years, gender, governorate_name_ar, bio')
+    .in('id', educatorIds);
+  if (directoryError) throw directoryError;
+
+  const byId = new Map((educators || []).map((e) => [e.id, e as OfferForParent['educator']]));
+  return rows.map(({ educator_id, ...offer }) => ({ ...offer, educator: byId.get(educator_id) ?? null }));
+}
