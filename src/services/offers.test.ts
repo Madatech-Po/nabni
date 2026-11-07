@@ -4,7 +4,7 @@ import { allArgsOf, argsOf, createSupabaseMock } from '@/test/supabaseMock';
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { getEducatorOfferingState, getRequestIdsWithMyActiveOffer } from './offers';
+import { getEducatorOfferingState, getMyOffers, getMyPendingOffer, getRequestIdsWithMyActiveOffer } from './offers';
 import { getOpenRequest } from './requests';
 
 beforeEach(() => {
@@ -59,5 +59,33 @@ describe('getOpenRequest', () => {
     expect(await getOpenRequest(id)).toBeNull();
     expect(await getOpenRequest('nope')).toBeNull();
     expect(mock.queries).toHaveLength(1);
+  });
+});
+
+describe('getMyOffers', () => {
+  it("lists the educator's offers newest first with their request", async () => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'o1' }] }));
+
+    expect(await getMyOffers('e1')).toEqual([{ id: 'o1' }]);
+    const [query] = mock.on('offers');
+    expect(argsOf(query, 'eq')).toEqual(['educator_id', 'e1']);
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    expect(String(argsOf(query, 'select')?.[0])).toContain('request:requests(');
+  });
+});
+
+describe('getMyPendingOffer', () => {
+  const id = '6c1d3b1e-0d43-4b0e-9a4f-1d2a3b4c5d6e';
+
+  it("loads only the educator's own pending offer", async () => {
+    mock = createSupabaseMock(() => ({ data: { id } }));
+
+    expect(await getMyPendingOffer('e1', id)).toEqual({ id });
+    expect(allArgsOf(mock.on('offers')[0], 'eq')).toEqual([['id', id], ['educator_id', 'e1'], ['status', 'pending']]);
+  });
+
+  it('returns null for a malformed id without querying', async () => {
+    expect(await getMyPendingOffer('e1', 'x')).toBeNull();
+    expect(mock.queries).toHaveLength(0);
   });
 });
