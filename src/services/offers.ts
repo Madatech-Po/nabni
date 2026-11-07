@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import type { EducatorVerificationStatus, OfferStatus, RequestStatus } from '@/types/database';
+import type { RequestFeedItem } from './requests';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -163,4 +164,44 @@ export async function getOfferContact(offerId: string): Promise<OfferContact | n
   const { data, error } = await supabase.rpc('get_offer_contact', { p_offer_id: offerId });
   if (error) throw error;
   return (data as OfferContact[] | null)?.[0] ?? null;
+}
+
+/**
+ * Newest open requests in one of the educator's services and governorates (where they live
+ * or teach). Empty when the educator hasn't picked services yet.
+ */
+export async function getMatchingOpenRequests(educatorId: string, limit = 3): Promise<RequestFeedItem[]> {
+  const supabase = createClient();
+  const [subjects, locations, home] = await Promise.all([
+    supabase.from('educator_subjects').select('subject_id').eq('educator_id', educatorId),
+    supabase.from('educator_locations').select('governorate_id').eq('educator_id', educatorId),
+    supabase.from('educators').select('governorate_id').eq('id', educatorId).maybeSingle(),
+  ]);
+  for (const result of [subjects, locations, home]) if (result.error) throw result.error;
+
+  const subjectIds = (subjects.data || []).map((s) => s.subject_id);
+  const governorateIds = Array.from(
+    new Set([...(locations.data || []).map((l) => l.governorate_id), home.data?.governorate_id].filter((id): id is number => id != null))
+  );
+  if (subjectIds.length === 0) return [];
+
+  let query = supabase
+    .from('requests')
+    .select(
+      `id, student_age, description, preferred_educator_gender, budget, area, created_at,
+       service_category:service_categories(name_ar),
+       education_level:education_levels(name_ar),
+       teaching_place:teaching_places(name_ar),
+       governorate:governorates(name_ar),
+       pricing_unit:pricing_units(name_ar)`
+    )
+    .eq('status', 'open')
+    .in('service_category_id', subjectIds)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (governorateIds.length > 0) query = query.in('governorate_id', governorateIds);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as unknown as RequestFeedItem[];
 }

@@ -5,7 +5,8 @@ let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
 import {
-  getEducatorOfferingState, getMyOffers, getMyPendingOffer, getOfferContact, getOffersOnMyRequest, getRequestIdsWithMyActiveOffer,
+  getEducatorOfferingState, getMatchingOpenRequests, getMyOffers, getMyPendingOffer, getOfferContact, getOffersOnMyRequest,
+  getRequestIdsWithMyActiveOffer,
 } from './offers';
 import { getMyRequest, getOpenRequest } from './requests';
 
@@ -147,5 +148,40 @@ describe('getOfferContact', () => {
   it('returns null when the database hands out nothing', async () => {
     mock.setRpcResult({ data: [] });
     expect(await getOfferContact('o1')).toBeNull();
+  });
+});
+
+describe('getMatchingOpenRequests', () => {
+  function respondWith(subjects: object[], locations: object[], home: object | null) {
+    return createSupabaseMock((q) => {
+      if (q.table === 'educator_subjects') return { data: subjects };
+      if (q.table === 'educator_locations') return { data: locations };
+      if (q.table === 'educators') return { data: home };
+      return { data: [{ id: 'r1' }] };
+    });
+  }
+
+  it("filters open requests by the educator's services and governorates, newest first", async () => {
+    mock = respondWith([{ subject_id: 4 }, { subject_id: 5 }], [{ governorate_id: 2 }], { governorate_id: 1 });
+
+    expect(await getMatchingOpenRequests('e1', 3)).toEqual([{ id: 'r1' }]);
+    const [query] = mock.on('requests');
+    expect(argsOf(query, 'eq')).toEqual(['status', 'open']);
+    expect(allArgsOf(query, 'in')).toEqual([['service_category_id', [4, 5]], ['governorate_id', [2, 1]]]);
+    expect(argsOf(query, 'limit')).toEqual([3]);
+  });
+
+  it('skips the governorate filter when none is known', async () => {
+    mock = respondWith([{ subject_id: 4 }], [], { governorate_id: null });
+
+    await getMatchingOpenRequests('e1');
+    expect(allArgsOf(mock.on('requests')[0], 'in')).toEqual([['service_category_id', [4]]]);
+  });
+
+  it('returns nothing before the educator picks services', async () => {
+    mock = respondWith([], [{ governorate_id: 2 }], null);
+
+    expect(await getMatchingOpenRequests('e1')).toEqual([]);
+    expect(mock.on('requests')).toHaveLength(0);
   });
 });
