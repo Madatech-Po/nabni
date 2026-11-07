@@ -4,7 +4,9 @@ import { allArgsOf, argsOf, createSupabaseMock } from '@/test/supabaseMock';
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { getEducatorOfferingState, getMyOffers, getMyPendingOffer, getOffersOnMyRequest, getRequestIdsWithMyActiveOffer } from './offers';
+import {
+  getEducatorOfferingState, getMyOffers, getMyPendingOffer, getOfferContact, getOffersOnMyRequest, getRequestIdsWithMyActiveOffer,
+} from './offers';
 import { getMyRequest, getOpenRequest } from './requests';
 
 beforeEach(() => {
@@ -131,5 +133,19 @@ describe('getMyRequest', () => {
   it('returns null for a malformed id', async () => {
     expect(await getMyRequest('p1', 'x')).toBeNull();
     expect(mock.queries).toHaveLength(0);
+  });
+});
+
+describe('getOfferContact', () => {
+  it('asks the database for the contact of an accepted offer', async () => {
+    mock.setRpcResult({ data: [{ full_name: 'منى', phone: '01012345678', whatsapp_number: null }] });
+
+    expect(await getOfferContact('o1')).toEqual({ full_name: 'منى', phone: '01012345678', whatsapp_number: null });
+    expect(mock.rpcCalls).toEqual([{ fn: 'get_offer_contact', args: { p_offer_id: 'o1' } }]);
+  });
+
+  it('returns null when the database hands out nothing', async () => {
+    mock.setRpcResult({ data: [] });
+    expect(await getOfferContact('o1')).toBeNull();
   });
 });

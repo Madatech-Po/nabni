@@ -147,3 +147,20 @@ export async function getOffersOnMyRequest(requestId: string): Promise<OfferForP
   const byId = new Map((educators || []).map((e) => [e.id, e as OfferForParent['educator']]));
   return rows.map(({ educator_id, ...offer }) => ({ ...offer, educator: byId.get(educator_id) ?? null }));
 }
+
+export interface OfferContact {
+  full_name: string;
+  phone: string | null;
+  whatsapp_number: string | null;
+}
+
+/**
+ * The other side's contact for an accepted offer: the educator's for the parent, the parent's
+ * for the educator. The database returns nothing for anyone else or any other status.
+ */
+export async function getOfferContact(offerId: string): Promise<OfferContact | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc('get_offer_contact', { p_offer_id: offerId });
+  if (error) throw error;
+  return (data as OfferContact[] | null)?.[0] ?? null;
+}

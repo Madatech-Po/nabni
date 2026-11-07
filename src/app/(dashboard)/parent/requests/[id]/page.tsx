@@ -3,7 +3,8 @@ import { notFound, redirect } from 'next/navigation';
 import { Box, Button, Container, Paper, Stack, Typography } from '@mui/material';
 import { createClient } from '@/utils/supabase/server';
 import { getMyRequest } from '@/services/requests';
-import { getOffersOnMyRequest } from '@/services/offers';
+import { getOfferContact, getOffersOnMyRequest } from '@/services/offers';
+import ContactCard from '@/components/offers/ContactCard';
 import RequestCard from '@/components/requests/RequestCard';
 import MyRequestActions from '@/components/requests/MyRequestActions';
 import ParentOfferCard from '@/components/offers/ParentOfferCard';
@@ -24,6 +25,8 @@ export default async function MyRequestOffersPage({ params }: { params: { id: st
   const offers = (await getOffersOnMyRequest(request.id)).sort((a, b) => ORDER[a.status] - ORDER[b.status]);
   const pendingCount = offers.filter((o) => o.status === 'pending').length;
   const canDecide = request.status === 'open';
+  const accepted = offers.find((o) => o.status === 'accepted');
+  const contact = accepted ? await getOfferContact(accepted.id) : null;
 
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
@@ -51,7 +54,13 @@ export default async function MyRequestOffersPage({ params }: { params: { id: st
             <ParentOfferCard
               key={offer.id}
               offer={offer}
-              actions={canDecide && offer.status === 'pending' ? <OfferDecisionActions offerId={offer.id} /> : undefined}
+              actions={
+                offer.status === 'accepted' ? (
+                  <ContactCard title="تواصل مع المتخصص لترتيب أول حصة" contact={contact} />
+                ) : canDecide && offer.status === 'pending' ? (
+                  <OfferDecisionActions offerId={offer.id} />
+                ) : undefined
+              }
             />
           ))}
         </Stack>

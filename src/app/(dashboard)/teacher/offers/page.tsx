@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Box, Button, Chip, Container, Paper, Stack, Typography } from '@mui/material';
 import { createClient } from '@/utils/supabase/server';
-import { getEducatorOfferingState, getMyOffers } from '@/services/offers';
+import { getEducatorOfferingState, getMyOffers, getOfferContact } from '@/services/offers';
+import ContactCard from '@/components/offers/ContactCard';
 import MyOfferActions from '@/components/offers/MyOfferActions';
 import CannotOfferNotice from '@/components/offers/CannotOfferNotice';
 import { MY_OFFER_STATUS_LABELS, OFFER_STATUS_COLORS } from '@/components/offers/offerStatus';
@@ -15,6 +16,12 @@ export default async function MyOffersPage() {
 
   const educator = await getEducatorOfferingState(user.id);
   const offers = educator ? await getMyOffers(educator.educatorId) : [];
+  // Contacts exist only for accepted offers; the database refuses every other one.
+  const contacts = new Map(
+    await Promise.all(
+      offers.filter((o) => o.status === 'accepted').map(async (o) => [o.id, await getOfferContact(o.id)] as const)
+    )
+  );
   // Offers that ended while the request stayed open can be replaced by a new one.
   const activeRequestIds = new Set(
     offers.filter((o) => o.status === 'pending' || o.status === 'accepted').map((o) => o.request?.id)
@@ -71,6 +78,9 @@ export default async function MyOffersPage() {
 
               <Box sx={{ mt: 2 }}>
                 {offer.status === 'pending' && <MyOfferActions offerId={offer.id} />}
+                {offer.status === 'accepted' && (
+                  <ContactCard title="تواصل مع ولي الأمر لترتيب أول حصة" contact={contacts.get(offer.id) ?? null} />
+                )}
                 {canOfferAgain && request && (
                   <Button component={Link} href={`/teacher/requests/${request.id}/offer`} size="small" variant="outlined">
                     قدّم عرضاً جديداً على هذا الطلب
