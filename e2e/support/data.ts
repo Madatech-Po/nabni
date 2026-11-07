@@ -89,10 +89,19 @@ export async function deleteE2eRequests(
   const hidden = (rows ?? []).filter((r) => r.status === 'removed');
   if (hidden.length && account('admin')) {
     const admin = await clientAs('admin');
-    for (const { id } of hidden) {
-      await admin.supabase.rpc('set_request_status', { p_request_id: id, p_status: 'closed', p_reason: 'e2e cleanup' });
+    try {
+      for (const { id } of hidden) {
+        const { error } = await admin.supabase.rpc('set_request_status', {
+          p_request_id: id,
+          p_status: 'closed',
+          p_reason: 'e2e cleanup',
+        });
+        // A request left hidden would silently survive the delete below (RLS skips it).
+        if (error) throw new Error(`cleanup could not un-hide request ${id}: ${error.message}`);
+      }
+    } finally {
+      await admin.supabase.auth.signOut({ scope: 'local' });
     }
-    await admin.supabase.auth.signOut({ scope: 'local' });
   }
 
   const ids = (rows ?? []).map((r) => r.id);
