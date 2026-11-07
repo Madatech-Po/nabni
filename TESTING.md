@@ -37,6 +37,17 @@
 Writing specs: prefer roles and labels (`getByRole`, `getByLabel`) over CSS, wait for the `load` event
 rather than `networkidle` (Next keeps prefetching links), and give each test its own `e2eText(...)` marker.
 
+### Watching the tests (NAB-112)
+
+```powershell
+# your installed Chrome (or msedge for Edge), one test at a time, 0.5 s between actions
+$env:E2E_BROWSER = 'chrome'; $env:E2E_SLOWMO = '500'; npx playwright test offers --headed --workers=1
+# step through every test with a timeline
+npx playwright test --ui
+```
+
+Without `E2E_BROWSER` the tests use Playwright's bundled Chromium (as CI does).
+
 ## Database permission tests
 
 `supabase/tests/permissions.sql` acts as each role inside a transaction that is always rolled back and

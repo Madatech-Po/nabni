@@ -10,6 +10,10 @@ const isCI = !!process.env.CI;
 // E2E_PORT lets a second checkout run its own server next to `npm run dev` on 3000.
 const port = Number(process.env.E2E_PORT ?? 3000);
 const baseURL = `http://localhost:${port}`;
+// To watch the tests (NAB-112): E2E_BROWSER=chrome or msedge drives the installed browser
+// instead of Playwright's bundled Chromium, and E2E_SLOWMO=<ms> pauses between actions.
+const channel = process.env.E2E_BROWSER || undefined;
+const slowMo = Number(process.env.E2E_SLOWMO ?? 0);
 
 export default defineConfig({
   testDir: './e2e',
@@ -27,10 +31,12 @@ export default defineConfig({
     timezoneId: 'Africa/Cairo',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    channel,
+    launchOptions: { slowMo },
   },
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, dependencies: ['setup'] },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel }, dependencies: ['setup'] },
   ],
   webServer: {
     // CI tests the production build; locally an already running `npm run dev` is reused.
