@@ -55,9 +55,15 @@ export default function AdminActions<T extends string | boolean>({
     router.refresh();
   }
 
+  function closeDialog() {
+    setPending(null);
+    setError(null);
+  }
+
   return (
     <>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {/* While the reason dialog is open its own copy shows the error above the backdrop. */}
+      {error && !pending && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         {actions.map((action) => (
           <Button
@@ -73,11 +79,13 @@ export default function AdminActions<T extends string | boolean>({
         ))}
       </Box>
 
-      <Dialog open={Boolean(pending)} onClose={() => !saving && setPending(null)} fullWidth maxWidth="sm">
+      <Dialog open={Boolean(pending)} onClose={() => !saving && closeDialog()} fullWidth maxWidth="sm">
         <DialogTitle>{pending?.label}</DialogTitle>
         <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <TextField
             label="السبب (يُسجل في سجل الإدارة)"
+            required
             multiline
             rows={3}
             fullWidth
@@ -87,11 +95,12 @@ export default function AdminActions<T extends string | boolean>({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPending(null)} disabled={saving}>إلغاء</Button>
+          <Button onClick={closeDialog} disabled={saving}>إلغاء</Button>
           <Button
             variant="contained"
             color={pending?.color}
-            disabled={saving}
+            // These actions are logged with their reason, so one is required.
+            disabled={saving || !reason.trim()}
             onClick={() => pending && apply(pending, reason)}
           >
             تأكيد
