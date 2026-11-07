@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { account, asRole, roleHome, type Role } from './support/accounts';
 
 // A signed-in user can always get home, back to their dashboard, and sign out (NAB-93).
@@ -36,6 +36,43 @@ for (const [role, pages] of [
 test('visitors see "join as educator" in the header (NAB-100)', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('banner').getByRole('link', { name: 'انضم كمتخصص' })).toHaveAttribute('href', '/register?role=educator');
+});
+
+test.describe('phone menu (NAB-99)', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  /** Opens the phone menu, retrying in case the click lands before the page hydrates. */
+  async function openMenu(page: Page) {
+    const menu = page.getByRole('navigation', { name: 'قائمة الموقع' });
+    await expect(async () => {
+      await page.getByRole('banner').getByRole('button', { name: 'القائمة' }).click();
+      await expect(menu).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    return menu;
+  }
+
+  test('a visitor opens the menu and reaches the educators page', async ({ page }) => {
+    await page.goto('/');
+    const header = page.getByRole('banner');
+    await expect(header.getByRole('navigation', { name: 'القائمة الرئيسية' })).toBeHidden();
+    const menu = await openMenu(page);
+    await expect(menu.getByRole('link', { name: 'تسجيل الدخول' })).toBeVisible();
+    await menu.getByRole('link', { name: 'ابحث عن متخصص' }).click();
+    await expect(page).toHaveURL(/\/educators$/);
+    await expect(menu).toBeHidden();
+  });
+
+  test.describe('signed in', () => {
+    asRole(test, 'parent');
+
+    test('a parent gets back to the dashboard from the menu', async ({ page }) => {
+      await page.goto('/parent/requests/new');
+      const menu = await openMenu(page);
+      await expect(menu.getByRole('link', { name: 'انضم كمتخصص' })).toHaveCount(0);
+      await menu.getByRole('link', { name: 'لوحتي' }).click();
+      await expect(page).toHaveURL(/\/parent$/);
+    });
+  });
 });
 
 test.describe('sign out', () => {

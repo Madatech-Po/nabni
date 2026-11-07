@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -8,7 +8,7 @@ const signOut = vi.fn<(opts?: unknown) => Promise<{ error: Error | null }>>(asyn
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock('@/utils/supabase/client', () => ({ createClient: () => ({ auth: { signOut } }) }));
 
-import GlobalHeader from './GlobalHeader';
+import GlobalHeader, { NAV_LINKS } from './GlobalHeader';
 
 beforeEach(() => {
   push.mockClear();
@@ -71,5 +71,37 @@ describe('GlobalHeader (NAB-93)', () => {
     await waitFor(() => expect(button).toBeEnabled());
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
+  });
+
+  describe('phone menu (NAB-99)', () => {
+    it('opens from the menu button and lists every page link', async () => {
+      render(<GlobalHeader />);
+      fireEvent.click(screen.getByRole('button', { name: 'القائمة' }));
+
+      const menu = await screen.findByRole('navigation', { name: 'قائمة الموقع' });
+      for (const { href, label } of NAV_LINKS) {
+        expect(within(menu).getByRole('link', { name: label })).toHaveAttribute('href', href);
+      }
+      expect(within(menu).getByRole('link', { name: 'تسجيل الدخول' })).toHaveAttribute('href', '/login');
+    });
+
+    it('shows a signed-in user the dashboard and sign-out, without "join as educator"', async () => {
+      render(<GlobalHeader signedIn />);
+      fireEvent.click(screen.getByRole('button', { name: 'القائمة' }));
+
+      const menu = await screen.findByRole('navigation', { name: 'قائمة الموقع' });
+      expect(within(menu).getByRole('link', { name: 'لوحتي' })).toHaveAttribute('href', '/dashboard');
+      expect(within(menu).getByRole('button', { name: 'تسجيل الخروج' })).toBeInTheDocument();
+      expect(within(menu).queryByRole('link', { name: 'انضم كمتخصص' })).not.toBeInTheDocument();
+    });
+
+    it('closes after picking a link', async () => {
+      render(<GlobalHeader />);
+      fireEvent.click(screen.getByRole('button', { name: 'القائمة' }));
+      const menu = await screen.findByRole('navigation', { name: 'قائمة الموقع' });
+      fireEvent.click(within(menu).getByRole('link', { name: 'عن نبني' }));
+
+      await waitFor(() => expect(screen.queryByRole('navigation', { name: 'قائمة الموقع' })).not.toBeInTheDocument());
+    });
   });
 });
