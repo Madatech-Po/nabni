@@ -82,6 +82,15 @@ describe('TutorCard', () => {
     expect(screen.queryByText('تخاطب')).not.toBeInTheDocument();
   });
 
+  it('puts the first letter of the name in the avatar, skipping symbols (NAB-98)', () => {
+    const { container, unmount } = render(<TutorCard tutor={educator} />);
+    expect(container.querySelector('.MuiAvatar-root')).toHaveTextContent(/^م$/);
+    unmount();
+
+    const symbolFirst = render(<TutorCard tutor={{ ...educator, full_name: '[E2E] متخصص' }} />);
+    expect(symbolFirst.container.querySelector('.MuiAvatar-root')).toHaveTextContent(/^E$/);
+  });
+
   it('falls back to a generic name', () => {
     render(<TutorCard tutor={{ ...educator, full_name: '' }} />);
 

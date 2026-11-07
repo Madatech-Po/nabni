@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { getInitial } from '@/utils/initials';
 import { Avatar, Box, Chip, Paper, Typography } from '@mui/material';
 import type { OfferForParent } from '@/services/offers';
 import type { OfferStatus } from '@/types/database';
@@ -24,7 +25,7 @@ export default function ParentOfferCard({ offer, actions }: { offer: OfferForPar
     >
       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
         <Avatar src={educator?.profile_image ?? undefined} sx={{ width: 56, height: 56 }}>
-          {educator?.full_name?.charAt(0)}
+          {getInitial(educator?.full_name)}
         </Avatar>
         <Box sx={{ flexGrow: 1 }}>
           <Typography fontWeight="bold">{educator?.full_name ?? 'متخصص'}</Typography>

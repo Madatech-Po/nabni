@@ -1,10 +1,11 @@
 import { Card, CardContent, Avatar, Typography, Box, Chip, Stack } from '@mui/material';
+import { getInitial } from '@/utils/initials';
 import { MapPin, Briefcase } from 'lucide-react';
 import type { EducatorDirectoryItem } from '@/services/tutors';
 
 export default function TutorCard({ tutor }: { tutor: EducatorDirectoryItem }) {
   const fullName = tutor.full_name || 'معلم نبني';
-  const initial = fullName[0];
+  const initial = getInitial(fullName);
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

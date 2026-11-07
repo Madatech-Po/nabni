@@ -1,4 +1,5 @@
 import { Card, CardContent, Avatar, Typography, Box, Chip, Stack, Divider } from '@mui/material';
+import { getInitial } from '@/utils/initials';
 import type { AdminEducatorItem } from '@/services/admin';
 import { STATUS_COLORS, STATUS_LABELS } from './verificationStatus';
 import { formatDate } from '@/utils/formatDate';
@@ -40,7 +41,7 @@ export default function EducatorReviewCard({
       <CardContent sx={{ p: 3 }}>
         <Stack direction="row" spacing={2} alignItems="center" mb={2}>
           <Avatar src={educator.profile_image || undefined} sx={{ width: 56, height: 56 }}>
-            {educator.full_name[0]}
+            {getInitial(educator.full_name)}
           </Avatar>
           <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h6" fontWeight="bold">{educator.full_name}</Typography>
