@@ -381,6 +381,24 @@ BEGIN
   PERFORM pg_temp.check(pg_temp.denied(format($q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (%L, %L, 100, %s, 'Any day')$q$, req3_id, edu2_id, unit_id)),
     'suspended educator cannot offer');
 
+  -- Admins remove offers (NAB-86)
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.remove_offer(%L, 'x')$q$, offer1_id)),
+    'parent cannot remove offers');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.remove_offer(offer1_id, ' spam ');
+  PERFORM public.remove_offer(offer1_id);  -- already removed: no-op, not logged again
+  PERFORM pg_temp.check((SELECT status FROM public.offers WHERE id = offer1_id) = 'removed', 'admin removes an accepted offer');
+  SELECT count(*) INTO n FROM public.admin_logs WHERE target_id = offer1_id AND action = 'offer.removed';
+  PERFORM pg_temp.check(n = 1, 'offer removal logged once');
+  PERFORM pg_temp.check((SELECT details->>'reason' FROM public.admin_logs WHERE target_id = offer1_id) = 'spam',
+    'removal reason stored trimmed');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.remove_offer(%L)$q$, offer2_id), '23514'),
+    'declined offers are not removable');
+  PERFORM pg_temp.act_as(parent_uid);
+  SELECT count(*) INTO n FROM public.get_offer_contact(offer1_id);
+  PERFORM pg_temp.check(n = 0, 'removing an accepted offer takes the contacts away');
+
   RESET ROLE;
   RAISE NOTICE 'All permission checks passed.';
 END $$;

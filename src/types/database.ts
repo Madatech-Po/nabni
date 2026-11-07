@@ -288,6 +288,7 @@ export type Database = {
         Returns: { full_name: string; phone: string | null; whatsapp_number: string | null }[];
       };
       my_offering_educator_id: { Args: Record<string, never>; Returns: string | null };
+      remove_offer: { Args: { p_offer_id: string; p_reason?: string | null }; Returns: OfferStatus };
     };
     Enums: {
       educator_gender: EducatorGender;
