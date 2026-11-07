@@ -23,7 +23,10 @@ export default defineConfig({
   // The dev server compiles pages on first visit and breaks under heavy parallel
   // load, and every test talks to the live project: keep it to two workers.
   workers: 2,
-  expect: { timeout: 10_000 },
+  // Slowed-down runs (E2E_SLOWMO) need far longer per test, and more patience while the dev
+  // server compiles a page it hasn't served yet.
+  timeout: slowMo ? 180_000 : 30_000,
+  expect: { timeout: slowMo ? 30_000 : 10_000 },
   reporter: isCI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL,
