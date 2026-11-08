@@ -4,7 +4,7 @@
 
 1. Plan the task in Jira (NAB) and move it to **In Progress**.
 2. Build it, with unit and component tests next to the code (`*.test.ts(x)`, Vitest).
-3. `npm run typecheck` and `npm test`.
+3. `npm run lint`, `npm run typecheck` and `npm test`.
 4. **UI tests:** `npm run test:e2e`. Every new screen or flow ships with its Playwright spec in `e2e/`.
 5. Database changes: extend and run `supabase/tests/permissions.sql` (it rolls itself back).
 6. CodeRabbit review of the task's commits; open a Jira bug for each valid finding, then fix it.

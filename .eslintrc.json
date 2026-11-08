@@ -1,0 +1,5 @@
+{
+  "root": true,
+  "extends": ["next/core-web-vitals"],
+  "ignorePatterns": ["_old_prototype/", "playwright-report/", "test-results/", "playwright/.auth/", "supabase/"]
+}

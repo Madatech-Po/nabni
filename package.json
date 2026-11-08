@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "next lint --dir src --dir e2e",
     "db:introspect": "node scripts/db/introspect-schema.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -196,7 +196,7 @@ export default function TestimonialsSection() {
                           overflow: 'hidden'
                         }}
                       >
-                        "{review.review}"
+                        &ldquo;{review.review}&rdquo;
                       </Typography>
 
                       {/* Footer Badge */}
