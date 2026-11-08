@@ -21,7 +21,12 @@ export default async function SendOfferPage({ params }: { params: { id: string }
   if (!educator) {
     content = <CannotOfferNotice reason="no_profile" />;
   } else if (!educator.canOffer) {
-    content = <CannotOfferNotice reason={educator.verificationStatus === 'verified' ? 'inactive' : educator.verificationStatus ?? 'pending'} />;
+    content = (
+      <CannotOfferNotice
+        reason={educator.verificationStatus === 'verified' ? 'inactive' : educator.verificationStatus ?? 'pending'}
+        note={educator.verificationReason}
+      />
+    );
   } else if ((await getRequestIdsWithMyActiveOffer(educator.educatorId)).has(request.id)) {
     content = (
       <Alert severity="success" variant="outlined">

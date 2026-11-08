@@ -99,6 +99,8 @@ export type Database = {
           experience_years: number | null;
           gender: EducatorGender | null;
           verification_status: EducatorVerificationStatus | null;
+          /** Admin's reason for rejected/suspended; NULL otherwise (NAB-97). Set by set_educator_verification(). */
+          verification_reason: string | null;
           is_active: boolean | null;
           created_at: string | null;
           updated_at: string | null;

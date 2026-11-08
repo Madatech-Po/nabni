@@ -17,8 +17,17 @@ beforeEach(() => {
 describe('getEducatorOfferingState', () => {
   it('allows offers only for a verified, active educator', async () => {
     mock = createSupabaseMock(() => ({ data: { id: 'e1', verification_status: 'verified', is_active: true } }));
-    expect(await getEducatorOfferingState('u1')).toEqual({ educatorId: 'e1', verificationStatus: 'verified', canOffer: true });
+    expect(await getEducatorOfferingState('u1')).toEqual({
+      educatorId: 'e1', verificationStatus: 'verified', verificationReason: null, canOffer: true,
+    });
     expect(argsOf(mock.on('educators')[0], 'eq')).toEqual(['user_id', 'u1']);
+  });
+
+  it("passes on the admin's reason for a rejected educator (NAB-97)", async () => {
+    mock = createSupabaseMock(() => ({
+      data: { id: 'e1', verification_status: 'rejected', verification_reason: 'الصورة غير واضحة', is_active: true },
+    }));
+    expect(await getEducatorOfferingState('u1')).toMatchObject({ verificationReason: 'الصورة غير واضحة', canOffer: false });
   });
 
   it.each([

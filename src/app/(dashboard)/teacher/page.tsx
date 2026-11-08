@@ -64,6 +64,7 @@ export default async function TeacherDashboard() {
         <Box sx={{ mb: 4 }}>
           <CannotOfferNotice
             reason={educator.verificationStatus === 'verified' ? 'inactive' : educator.verificationStatus ?? 'pending'}
+            note={educator.verificationReason}
           />
         </Box>
       )}

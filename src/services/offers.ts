@@ -7,6 +7,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export interface EducatorOfferingState {
   educatorId: string;
   verificationStatus: EducatorVerificationStatus | null;
+  /** The admin's reason when rejected or suspended (NAB-97). */
+  verificationReason: string | null;
   /** Mirrors my_offering_educator_id(): verified and active. */
   canOffer: boolean;
 }
@@ -16,7 +18,7 @@ export async function getEducatorOfferingState(userId: string): Promise<Educator
   const supabase = createClient();
   const { data, error } = await supabase
     .from('educators')
-    .select('id, verification_status, is_active')
+    .select('id, verification_status, verification_reason, is_active')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -25,6 +27,7 @@ export async function getEducatorOfferingState(userId: string): Promise<Educator
   return {
     educatorId: data.id,
     verificationStatus: data.verification_status,
+    verificationReason: data.verification_reason ?? null,
     canOffer: data.verification_status === 'verified' && data.is_active === true,
   };
 }

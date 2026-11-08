@@ -381,6 +381,27 @@ BEGIN
   PERFORM pg_temp.check(pg_temp.denied(format($q$INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (%L, %L, 100, %s, 'Any day')$q$, req3_id, edu2_id, unit_id)),
     'suspended educator cannot offer');
 
+  -- The admin's reason reaches only the educator it concerns (NAB-97)
+  PERFORM pg_temp.check((SELECT verification_reason FROM public.educators WHERE id = edu2_id) = 'test',
+    'suspended educator reads their own reason');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.educators SET verification_reason = NULL WHERE id = %L$q$, edu2_id)),
+    'educator cannot change their own reason');
+  PERFORM pg_temp.act_as(educator_uid);
+  SELECT count(*) INTO n FROM public.educators WHERE id = edu2_id;
+  PERFORM pg_temp.check(n = 0, 'another educator cannot read the reason');
+  PERFORM pg_temp.act_as(parent_uid);
+  SELECT count(*) INTO n FROM public.educators WHERE id = edu2_id;
+  PERFORM pg_temp.check(n = 0, 'a parent cannot read the reason');
+  PERFORM pg_temp.act_as(NULL);
+  SELECT count(*) INTO n FROM public.educators WHERE id = edu2_id;
+  PERFORM pg_temp.check(n = 0, 'a visitor cannot read the reason');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'verified');
+  PERFORM pg_temp.check((SELECT verification_reason FROM public.educators WHERE id = edu2_id) IS NULL,
+    're-verifying clears the reason');
+  PERFORM public.set_educator_verification(edu2_id, 'suspended', 'test');
+  PERFORM pg_temp.act_as(educator2_uid);
+
   -- Admins remove offers (NAB-86)
   PERFORM pg_temp.act_as(parent_uid);
   PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.remove_offer(%L, 'x')$q$, offer1_id)),

@@ -25,6 +25,9 @@
   starts with `[E2E]` (`e2e/support/data.ts`). Each test deletes its own data afterwards, and a sweep
   removes `[E2E]` leftovers older than 30 minutes. Admin tests only act on e2e data and only open pages
   for real accounts.
+- **Specs that change a shared e2e account** (for example suspending the e2e educator) go in
+  `e2e/isolated/`. That `isolated` project runs only after every other spec has finished, and its spec
+  must restore the account in `afterAll` even if the test fails (NAB-97).
 - **Cleanup clients.** Specs that need setup or cleanup use `clientAs(role)`, a Supabase client signed in
   as that e2e account, so RLS still applies. Always sign these out with `{ scope: 'local' }`: a global
   sign-out would end the browser's saved session too.
