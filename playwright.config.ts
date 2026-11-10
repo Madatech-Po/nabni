@@ -40,8 +40,9 @@ export default defineConfig({
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     { name: 'chromium', use: { ...devices['Desktop Chrome'], channel }, dependencies: ['setup'], testIgnore: /isolated[\/]/ },
-    // Specs that change the shared e2e accounts (e.g. suspend the educator) run after all others.
-    { name: 'isolated', testMatch: /isolated[\/].*\.spec\.ts/, use: { ...devices['Desktop Chrome'], channel }, dependencies: ['chromium'] },
+    // Specs that change the shared e2e accounts (e.g. suspend the educator) run after all others,
+    // one at a time, since several of them change the same account.
+    { name: 'isolated', testMatch: /isolated[\/].*\.spec\.ts/, use: { ...devices['Desktop Chrome'], channel }, dependencies: ['chromium'], workers: 1 },
   ],
   webServer: {
     // CI tests the production build; locally an already running `npm run dev` is reused.
