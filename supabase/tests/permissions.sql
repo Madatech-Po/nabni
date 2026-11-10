@@ -83,6 +83,14 @@ DECLARE
   notif_p1     uuid;
   notif_p2     uuid;
   notif_e1     uuid;
+  req4_id      uuid;
+  req5_id      uuid;
+  offer4_id    uuid;
+  offer5_id    uuid;
+  offer6_id    uuid;
+  offer7_id    uuid;
+  offer8_id    uuid;
+  nt           public.notifications%ROWTYPE;
 BEGIN
   -- ---------- Fixtures: signups go through handle_new_user ----------
   INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
@@ -425,6 +433,8 @@ BEGIN
 
   -- Notifications: read-only for their recipient, written only by notify() (NAB-106)
   RESET ROLE;
+  -- The steps above already created event notifications (NAB-96, checked below); start clean.
+  DELETE FROM public.notifications WHERE recipient_id IN (parent_uid, educator_uid, educator2_uid, admin_uid);
   notif_p1 := public.notify(parent_uid, 'test.one', 'First', 'body', '/requests', '{"k":1}');
   notif_p2 := public.notify(parent_uid, 'test.two', 'Second');
   notif_e1 := public.notify(educator_uid, 'test.one', 'For the educator');
@@ -469,6 +479,159 @@ BEGIN
   PERFORM pg_temp.check((SELECT NOT is_active FROM public.profiles WHERE id = parent_uid), 'parent is suspended');
   SELECT count(*) INTO n FROM public.notifications;
   PERFORM pg_temp.check(n = 2, 'suspended parent still reads their notifications');
+
+  -- ---------- Educator notifications (NAB-96) ----------
+  -- State here: edu_id verified, edu2_id suspended ('test'), parent suspended.
+  RESET ROLE;
+  DELETE FROM public.notifications WHERE recipient_id IN (parent_uid, educator_uid, educator2_uid, admin_uid);
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_profile_active(parent_uid, true);
+
+  -- Verification decisions (all on educator 2)
+  PERFORM public.set_educator_verification(edu2_id, 'verified');                -- suspended -> verified
+  RESET ROLE;
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = educator2_uid;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid;
+  PERFORM pg_temp.check(n = 1 AND nt.type = 'educator.reactivated' AND nt.title = 'تمت إعادة تفعيل حسابك' AND nt.link = '/teacher',
+    'reactivating a suspended educator sends one educator.reactivated');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'verified');                -- no-op
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid;
+  PERFORM pg_temp.check(n = 1, 'same verification status sends nothing');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'suspended', ' fake reviews ');
+  RESET ROLE;
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'educator.suspended';
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'educator.suspended';
+  PERFORM pg_temp.check(n = 1 AND nt.title = 'تم إيقاف حسابك' AND nt.link = '/teacher'
+      AND nt.body = 'سبب القرار: fake reviews' AND nt.data->>'reason' = 'fake reviews',
+    'suspension sends one educator.suspended with the reason');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'rejected');                -- no reason
+  RESET ROLE;
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'educator.rejected';
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'educator.rejected';
+  PERFORM pg_temp.check(n = 1 AND nt.title = 'لم يتم توثيق ملفك' AND nt.link = '/teacher/profile'
+      AND nt.body IS NOT NULL AND nt.body NOT LIKE 'سبب القرار%' AND nt.data->'reason' = 'null'::jsonb,
+    'rejection without a reason sends one educator.rejected with the generic line');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'pending');
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid;
+  PERFORM pg_temp.check(n = 3, 'back to pending sends nothing');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'verified');                -- pending -> verified
+  PERFORM public.set_educator_verification(edu2_id, 'rejected', 'blurry ID');
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'educator.verified'
+    AND title = 'تم توثيق ملفك' AND link = '/teacher';
+  PERFORM pg_temp.check(n = 1, 'first verification sends one educator.verified');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'educator.rejected'
+    AND body = 'سبب القرار: blurry ID' AND data->>'reason' = 'blurry ID';
+  PERFORM pg_temp.check(n = 1, 'rejection with a reason carries it in body and data');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu2_id, 'verified');                -- rejected -> verified
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'educator.reactivated';
+  PERFORM pg_temp.check(n = 2, 'rejected -> verified also sends educator.reactivated');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id IN (parent_uid, educator_uid, admin_uid);
+  PERFORM pg_temp.check(n = 0, 'verification notifications reach only the educator concerned');
+
+  PERFORM pg_temp.act_as(educator2_uid);
+  SELECT count(*) INTO n FROM public.notifications;
+  PERFORM pg_temp.check(n = 6, 'educator reads their verification notifications');
+  PERFORM pg_temp.act_as(educator_uid);
+  SELECT count(*) INTO n FROM public.notifications;
+  PERFORM pg_temp.check(n = 0, 'another educator does not see them');
+
+  -- Offer outcomes
+  RESET ROLE;
+  DELETE FROM public.notifications WHERE recipient_id IN (parent_uid, educator_uid, educator2_uid, admin_uid);
+  PERFORM pg_temp.act_as(parent_uid);
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (parent_uid, service_id, place_id, gov_id, 8, repeat('ن', 60)) RETURNING id INTO req4_id;
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (parent_uid, service_id, place_id, gov_id, 9, repeat('ب', 60)) RETURNING id INTO req5_id;
+  PERFORM pg_temp.act_as(educator_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req4_id, edu_id, 200, unit_id, 'Sundays') RETURNING id INTO offer4_id;
+  UPDATE public.offers SET price = 190 WHERE id = offer4_id;                     -- not a status change
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req5_id, edu_id, 200, unit_id, 'Sundays') RETURNING id INTO offer8_id;
+  PERFORM public.withdraw_offer(offer8_id);
+  PERFORM pg_temp.act_as(educator2_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req4_id, edu2_id, 150, unit_id, 'Mondays') RETURNING id INTO offer5_id;
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req5_id, edu2_id, 150, unit_id, 'Mondays') RETURNING id INTO offer7_id;
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id IN (parent_uid, educator_uid, educator2_uid, admin_uid);
+  PERFORM pg_temp.check(n = 0, 'sending, editing and withdrawing offers sends nothing');
+
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM public.decline_offer(offer5_id);
+  RESET ROLE;
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = educator2_uid;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid;
+  PERFORM pg_temp.check(n = 1 AND nt.type = 'offer.declined' AND nt.title = 'لم يتم اختيار عرضك' AND nt.link = '/teacher/offers'
+      AND nt.data->>'offer_id' = offer5_id::text AND nt.data->>'request_id' = req4_id::text,
+    'parent decline sends one offer.declined with offer and request ids');
+
+  PERFORM pg_temp.act_as(educator2_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (req4_id, edu2_id, 140, unit_id, 'Mondays') RETURNING id INTO offer6_id;
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM public.accept_offer(offer4_id);
+  RESET ROLE;
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = educator_uid;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator_uid;
+  PERFORM pg_temp.check(n = 1 AND nt.type = 'offer.accepted' AND nt.title = 'قبل ولي الأمر عرضك'
+      AND nt.body = 'تواصل مع ولي الأمر لترتيب أول حصة.' AND nt.data->>'offer_id' = offer4_id::text,
+    'acceptance sends one offer.accepted to the chosen educator');
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE recipient_id = educator2_uid AND type = 'offer.declined' AND data->>'offer_id' = offer6_id::text;
+  PERFORM pg_temp.check(n = 1, 'auto-declined competing offer sends one offer.declined');
+  SELECT count(*) INTO n FROM public.notifications WHERE data->>'request_id' = req4_id::text AND type = 'offer.archived';
+  PERFORM pg_temp.check(n = 0, 'closing by acceptance archives nothing extra');
+
+  PERFORM pg_temp.act_as(parent_uid);
+  UPDATE public.requests SET status = 'cancelled' WHERE id = req5_id;
+  RESET ROLE;
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'offer.archived';
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid AND type = 'offer.archived';
+  PERFORM pg_temp.check(n = 1 AND nt.title = 'أُغلق الطلب الذي قدمت عليه' AND nt.data->>'offer_id' = offer7_id::text,
+    'cancelling a request sends one offer.archived per pending offer');
+  SELECT count(*) INTO n FROM public.notifications WHERE data->>'offer_id' = offer8_id::text;
+  PERFORM pg_temp.check(n = 0, 'a withdrawn offer gets no notification, even when the request closes');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.remove_offer(offer4_id, ' rude messages ');
+  PERFORM public.remove_offer(offer4_id, 'again');                               -- no-op
+  RESET ROLE;
+  SELECT * INTO nt FROM public.notifications WHERE type = 'offer.removed' AND recipient_id IN (parent_uid, educator_uid, educator2_uid, admin_uid);
+  SELECT count(*) INTO n FROM public.notifications WHERE type = 'offer.removed' AND recipient_id IN (parent_uid, educator_uid, educator2_uid, admin_uid);
+  PERFORM pg_temp.check(n = 1 AND nt.recipient_id = educator_uid AND nt.title = 'تمت إزالة عرضك من قِبل الإدارة'
+      AND nt.body = 'سبب الإزالة: rude messages' AND nt.data->>'reason' = 'rude messages'
+      AND nt.data->>'offer_id' = offer4_id::text AND nt.data->>'request_id' = req4_id::text,
+    'admin removal sends one offer.removed with the reason, and nothing on repeat');
+
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator_uid;
+  PERFORM pg_temp.check(n = 2, 'educator 1 got exactly accepted + removed');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator2_uid;
+  PERFORM pg_temp.check(n = 3, 'educator 2 got exactly declined + auto-declined + archived');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id IN (parent_uid, admin_uid);
+  PERFORM pg_temp.check(n = 0, 'offer notifications go to educators only');
+
+  PERFORM pg_temp.check(NOT has_function_privilege('authenticated', 'public.notify_educator_offer_status_change()', 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', 'public.notify_educator_verification_change()', 'EXECUTE')
+      AND NOT has_function_privilege('anon', 'public.notify_educator_verification_change()', 'EXECUTE'),
+    'clients cannot execute the notification trigger functions');
 
   RESET ROLE;
   RAISE NOTICE 'All permission checks passed.';
