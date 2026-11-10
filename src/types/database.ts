@@ -246,6 +246,25 @@ export type Database = {
           { foreignKeyName: 'admin_logs_admin_id_fkey'; columns: ['admin_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
         ];
       };
+      notifications: {
+        Row: {
+          id: string;
+          recipient_id: string;
+          type: string;
+          title: string;
+          body: string | null;
+          link: string | null;
+          data: Record<string, unknown>;
+          read_at: string | null;
+          created_at: string;
+        };
+        // Written only by notify() (NAB-106); clients mark rows read through the RPCs.
+        Insert: never;
+        Update: never;
+        Relationships: [
+          { foreignKeyName: 'notifications_recipient_id_fkey'; columns: ['recipient_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
+        ];
+      };
     };
     Views: {
       educator_directory: {
@@ -291,6 +310,20 @@ export type Database = {
       };
       my_offering_educator_id: { Args: Record<string, never>; Returns: string | null };
       remove_offer: { Args: { p_offer_id: string; p_reason?: string | null }; Returns: OfferStatus };
+      mark_notification_read: { Args: { p_id: string }; Returns: undefined };
+      mark_all_notifications_read: { Args: Record<string, never>; Returns: number };
+      // Not executable by clients (EXECUTE revoked from anon/authenticated); listed for server-side use.
+      notify: {
+        Args: {
+          p_recipient: string;
+          p_type: string;
+          p_title: string;
+          p_body?: string | null;
+          p_link?: string | null;
+          p_data?: Record<string, unknown>;
+        };
+        Returns: string | null;
+      };
     };
     Enums: {
       educator_gender: EducatorGender;

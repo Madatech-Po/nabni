@@ -80,6 +80,9 @@ DECLARE
   gov_id       smallint := (SELECT min(id) FROM public.governorates);
   unit_id      smallint := (SELECT min(id) FROM public.pricing_units);
   n            int;
+  notif_p1     uuid;
+  notif_p2     uuid;
+  notif_e1     uuid;
 BEGIN
   -- ---------- Fixtures: signups go through handle_new_user ----------
   INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
@@ -419,6 +422,53 @@ BEGIN
   PERFORM pg_temp.act_as(parent_uid);
   SELECT count(*) INTO n FROM public.get_offer_contact(offer1_id);
   PERFORM pg_temp.check(n = 0, 'removing an accepted offer takes the contacts away');
+
+  -- Notifications: read-only for their recipient, written only by notify() (NAB-106)
+  RESET ROLE;
+  notif_p1 := public.notify(parent_uid, 'test.one', 'First', 'body', '/requests', '{"k":1}');
+  notif_p2 := public.notify(parent_uid, 'test.two', 'Second');
+  notif_e1 := public.notify(educator_uid, 'test.one', 'For the educator');
+  PERFORM pg_temp.check(public.notify(NULL, 'test.none', 'Nobody') IS NULL, 'notify ignores a NULL recipient');
+
+  PERFORM pg_temp.act_as(parent_uid);
+  SELECT count(*) INTO n FROM public.notifications;
+  PERFORM pg_temp.check(n = 2, 'parent sees only their own notifications');
+  PERFORM pg_temp.act_as(educator_uid);
+  SELECT count(*) INTO n FROM public.notifications;
+  PERFORM pg_temp.check(n = 1, 'educator sees only their own notifications');
+  PERFORM pg_temp.act_as(NULL);
+  PERFORM pg_temp.check(pg_temp.denied('SELECT count(*) FROM public.notifications'), 'anon cannot read notifications');
+
+  PERFORM pg_temp.act_as(educator_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format($q$INSERT INTO public.notifications (recipient_id, type, title) VALUES (%L, 'x', 'x')$q$, educator_uid)),
+    'user cannot insert a notification directly');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.notifications SET title = 'x' WHERE id = %L$q$, notif_e1)),
+    'user cannot edit a notification title');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$DELETE FROM public.notifications WHERE id = %L$q$, notif_e1)),
+    'user cannot delete a notification');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.notify(%L, 'x', 'x')$q$, educator_uid)),
+    'authenticated cannot call notify()');
+  PERFORM public.mark_notification_read(notif_p1);  -- someone else's: silent no-op
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT read_at FROM public.notifications WHERE id = notif_p1) IS NULL,
+    'marking someone else notification read changes nothing');
+
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM public.mark_notification_read(notif_p1);
+  PERFORM pg_temp.check((SELECT read_at FROM public.notifications WHERE id = notif_p1) IS NOT NULL,
+    'recipient marks a notification read');
+  PERFORM pg_temp.check(public.mark_all_notifications_read() = 1, 'mark all read returns the unread count');
+  PERFORM pg_temp.check(public.mark_all_notifications_read() = 0, 'mark all read again changes nothing');
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT read_at FROM public.notifications WHERE id = notif_e1) IS NULL,
+    'mark all read leaves other users notifications unread');
+
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_profile_active(parent_uid, false, 'notif test');
+  PERFORM pg_temp.act_as(parent_uid);
+  PERFORM pg_temp.check((SELECT NOT is_active FROM public.profiles WHERE id = parent_uid), 'parent is suspended');
+  SELECT count(*) INTO n FROM public.notifications;
+  PERFORM pg_temp.check(n = 2, 'suspended parent still reads their notifications');
 
   RESET ROLE;
   RAISE NOTICE 'All permission checks passed.';
