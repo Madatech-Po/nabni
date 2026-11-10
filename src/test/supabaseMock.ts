@@ -22,7 +22,7 @@ type Responder = (query: RecordedQuery) => MockResult | undefined;
 
 const CHAIN_METHODS = [
   'select', 'insert', 'update', 'upsert', 'delete',
-  'eq', 'neq', 'in', 'or', 'contains', 'ilike', 'order', 'limit', 'range',
+  'eq', 'neq', 'in', 'is', 'or', 'contains', 'ilike', 'order', 'limit', 'range',
   'single', 'maybeSingle',
 ] as const;
 
