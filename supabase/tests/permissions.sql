@@ -99,6 +99,10 @@ DECLARE
   offer11_id   uuid;
   offer12_id   uuid;
   parent_n     int;
+  educator3_uid uuid := gen_random_uuid();
+  admin2_uid   uuid := gen_random_uuid();
+  edu3_id      uuid;
+  admins_n     int;
 BEGIN
   -- ---------- Fixtures: signups go through handle_new_user ----------
   INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
@@ -813,6 +817,160 @@ BEGIN
       AND NOT has_function_privilege('anon', 'public.notify_parent_offer_updated()', 'EXECUTE')
       AND NOT has_function_privilege('anon', 'public.notify_parent_offer_withdrawn()', 'EXECUTE'),
     'clients cannot execute the parent notification trigger functions');
+
+  -- ---------- Admin notifications and automatic re-review (NAB-111) ----------
+  RESET ROLE;
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
+    (educator3_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-educator3@example.invalid',
+     '{"full_name":"Third Educator","role":"educator"}', now(), now()),
+    (admin2_uid,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-admin2@example.invalid',
+     '{"full_name":"Inactive Admin","role":"parent"}', now(), now());
+  UPDATE public.profiles SET role = 'admin', is_active = false WHERE id = admin2_uid;
+  -- Every active admin is notified; inside this rolled-back transaction that includes the real ones.
+  SELECT count(*) INTO admins_n FROM public.profiles WHERE role = 'admin' AND is_active;
+  PERFORM pg_temp.check(admins_n >= 1, 'there is at least one active admin (the test admin)');
+  DELETE FROM public.notifications
+    WHERE recipient_id IN (parent_uid, educator_uid, educator2_uid, admin_uid, educator3_uid, admin2_uid);
+
+  -- New educator profile
+  PERFORM pg_temp.act_as(educator3_uid);
+  INSERT INTO public.educators (user_id, full_name, phone, governorate_id, bio, gender)
+    VALUES (educator3_uid, 'Third Educator', '01277770000', gov_id, 'first bio', 'female') RETURNING id INTO edu3_id;
+  INSERT INTO public.educator_subjects (educator_id, subject_id) VALUES (edu3_id, service_id);
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE type = 'admin.educator_pending' AND data->>'educator_id' = edu3_id::text;
+  PERFORM pg_temp.check(n = admins_n, 'new educator profile notifies every active admin');
+  SELECT count(DISTINCT recipient_id) INTO n FROM public.notifications
+    WHERE type = 'admin.educator_pending' AND data->>'educator_id' = edu3_id::text
+      AND recipient_id IN (SELECT id FROM public.profiles WHERE role = 'admin' AND is_active);
+  PERFORM pg_temp.check(n = admins_n, 'exactly one admin.educator_pending per active admin');
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = admin_uid AND type = 'admin.educator_pending';
+  PERFORM pg_temp.check(nt.title = 'ملف متخصص جديد بانتظار المراجعة' AND nt.link = '/admin/educators'
+      AND nt.body LIKE '%Third Educator%' AND nt.data->>'educator_id' = edu3_id::text,
+    'admin.educator_pending has the title, link, name and educator_id');
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE recipient_id IN (admin2_uid, parent_uid, educator_uid, educator2_uid, educator3_uid);
+  PERFORM pg_temp.check(n = 0, 'inactive admins and non-admins get no admin notification');
+  PERFORM pg_temp.act_as(educator3_uid);
+  SELECT count(*) INTO n FROM public.notifications;
+  PERFORM pg_temp.check(n = 0, 'the educator cannot read admin notifications');
+  PERFORM pg_temp.act_as(admin_uid);
+  SELECT count(*) INTO n FROM public.notifications WHERE type = 'admin.educator_pending';
+  PERFORM pg_temp.check(n = 1, 'the admin reads their own admin.educator_pending');
+
+  -- Rejected educator edits their bio -> back to pending, admins notified once
+  PERFORM public.set_educator_verification(edu3_id, 'rejected', 'missing ID');
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator3_uid AND type = 'educator.rejected';
+  PERFORM pg_temp.check(n = 1, 'admin rejection still notifies the educator (NAB-96 unchanged)');
+  SELECT count(*) INTO n FROM public.notifications WHERE type LIKE 'admin.%' AND data->>'educator_id' = edu3_id::text;
+  PERFORM pg_temp.check(n = admins_n, 'an admin decision sends no admin notification');
+  PERFORM pg_temp.act_as(educator3_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.educators SET verification_status = 'pending' WHERE id = %L$q$, edu3_id)),
+    'rejected educator still cannot set verification_status directly');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.educators SET verification_reason = NULL WHERE id = %L$q$, edu3_id)),
+    'rejected educator still cannot clear verification_reason directly');
+  UPDATE public.educators SET bio = bio WHERE id = edu3_id;                     -- no-op
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT verification_status FROM public.educators WHERE id = edu3_id) = 'rejected'
+      AND (SELECT verification_reason FROM public.educators WHERE id = edu3_id) = 'missing ID',
+    'a no-op update leaves a rejected educator rejected');
+  PERFORM pg_temp.act_as(educator3_uid);
+  UPDATE public.educators SET bio = 'now with ID' WHERE id = edu3_id;
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT verification_status FROM public.educators WHERE id = edu3_id) = 'pending'
+      AND (SELECT verification_reason FROM public.educators WHERE id = edu3_id) IS NULL,
+    'rejected educator editing their bio goes back to pending and the reason is cleared');
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE type = 'admin.educator_resubmitted' AND data->>'educator_id' = edu3_id::text;
+  PERFORM pg_temp.check(n = admins_n, 'resubmission notifies every active admin once');
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = admin_uid AND type = 'admin.educator_resubmitted';
+  PERFORM pg_temp.check(nt.title = 'عدّل متخصص مرفوض ملفه ويحتاج لإعادة المراجعة'
+      AND nt.link = '/admin/educators?status=pending' AND nt.data->>'educator_id' = edu3_id::text,
+    'admin.educator_resubmitted has the title, link and educator_id');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = admin2_uid;
+  PERFORM pg_temp.check(n = 0, 'an inactive admin gets no resubmission notification');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator3_uid;
+  PERFORM pg_temp.check(n = 1, 'the educator gets nothing for the automatic -> pending');
+
+  PERFORM pg_temp.act_as(educator3_uid);
+  UPDATE public.educators SET bio = 'edited again while pending' WHERE id = edu3_id;
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE type = 'admin.educator_resubmitted' AND data->>'educator_id' = edu3_id::text;
+  PERFORM pg_temp.check(n = admins_n AND (SELECT verification_status FROM public.educators WHERE id = edu3_id) = 'pending',
+    'a second edit while pending sends nothing');
+
+  -- Saving only subjects (the profile form deletes and re-inserts them) also counts
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu3_id, 'rejected', 'add your subjects');
+  PERFORM pg_temp.act_as(educator3_uid);
+  DELETE FROM public.educator_subjects WHERE educator_id = edu3_id;
+  INSERT INTO public.educator_subjects (educator_id, subject_id) VALUES (edu3_id, service_id);
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT verification_status FROM public.educators WHERE id = edu3_id) = 'pending'
+      AND (SELECT verification_reason FROM public.educators WHERE id = edu3_id) IS NULL,
+    'rejected educator saving subjects only goes back to pending');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = admin_uid AND type = 'admin.educator_resubmitted';
+  PERFORM pg_temp.check(n = 2, 'a subjects-only resubmission notifies the admin once more (not once per row)');
+
+  -- Admin paths unchanged
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu3_id, 'rejected', 'still blurry');
+  PERFORM public.set_educator_verification(edu3_id, 'pending');                 -- the admin's own choice
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = admin_uid AND type = 'admin.educator_resubmitted';
+  PERFORM pg_temp.check(n = 2, 'an admin moving rejected -> pending is not a resubmission');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu3_id, 'verified');
+  PERFORM pg_temp.act_as(educator3_uid);
+  UPDATE public.educators SET bio = 'verified edit' WHERE id = edu3_id;
+  DELETE FROM public.educator_subjects WHERE educator_id = edu3_id;
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT verification_status FROM public.educators WHERE id = edu3_id) = 'verified',
+    'a verified educator editing stays verified');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu3_id, 'suspended', 'complaint');
+  PERFORM pg_temp.act_as(educator3_uid);
+  UPDATE public.educators SET bio = 'suspended edit' WHERE id = edu3_id;
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT verification_status FROM public.educators WHERE id = edu3_id) = 'suspended'
+      AND (SELECT verification_reason FROM public.educators WHERE id = edu3_id) = 'complaint',
+    'a suspended educator editing stays suspended with the reason');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = admin_uid AND type LIKE 'admin.%';
+  PERFORM pg_temp.check(n = 3, 'the admin got exactly 1 pending + 2 resubmitted for educator 3');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = educator3_uid;
+  PERFORM pg_temp.check(n = 5, 'educator 3 got only the admin decisions (3 rejected, 1 verified, 1 suspended)');
+
+  -- Edits without an educator session are not a resubmission; deleting a rejected profile still works
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_educator_verification(edu3_id, 'rejected', 'final');
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE public.educators SET bio = 'operator fix' WHERE id = edu3_id;
+  INSERT INTO public.educator_subjects (educator_id, subject_id) VALUES (edu3_id, service_id);
+  PERFORM pg_temp.check((SELECT verification_status FROM public.educators WHERE id = edu3_id) = 'rejected',
+    'an edit without an educator session leaves the status alone');
+  PERFORM pg_temp.act_as(educator3_uid);
+  DELETE FROM public.educators WHERE id = edu3_id;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  PERFORM pg_temp.check(n = 1, 'a rejected educator can still delete their profile (the cascade does not trip the triggers)');
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = admin_uid AND type LIKE 'admin.%';
+  PERFORM pg_temp.check(n = 3, 'none of that notified the admin');
+
+  PERFORM pg_temp.check(NOT has_function_privilege('authenticated', 'public.notify_admins(text, text, text, text, jsonb)', 'EXECUTE')
+      AND NOT has_function_privilege('anon', 'public.notify_admins(text, text, text, text, jsonb)', 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', 'public.notify_admins_educator_created()', 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', 'public.notify_admins_educator_resubmitted()', 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', 'public.educator_back_to_review_on_edit()', 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', 'public.educator_back_to_review_on_list_edit()', 'EXECUTE')
+      AND NOT has_function_privilege('anon', 'public.notify_admins_educator_created()', 'EXECUTE')
+      AND NOT has_function_privilege('anon', 'public.notify_admins_educator_resubmitted()', 'EXECUTE')
+      AND NOT has_function_privilege('anon', 'public.educator_back_to_review_on_edit()', 'EXECUTE')
+      AND NOT has_function_privilege('anon', 'public.educator_back_to_review_on_list_edit()', 'EXECUTE'),
+    'clients cannot execute the admin notification / re-review functions');
 
   RESET ROLE;
   RAISE NOTICE 'All permission checks passed.';

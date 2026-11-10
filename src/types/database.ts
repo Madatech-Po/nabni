@@ -324,6 +324,17 @@ export type Database = {
         };
         Returns: string | null;
       };
+      // Not executable by clients either (NAB-111): one notify() per active admin; returns how many.
+      notify_admins: {
+        Args: {
+          p_type: string;
+          p_title: string;
+          p_body?: string | null;
+          p_link?: string | null;
+          p_data?: Record<string, unknown>;
+        };
+        Returns: number;
+      };
     };
     Enums: {
       educator_gender: EducatorGender;
