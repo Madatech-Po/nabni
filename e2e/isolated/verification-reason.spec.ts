@@ -15,9 +15,15 @@ test.describe('verification reason (NAB-97)', () => {
   /** Puts the e2e educator back to verified whatever happened in the test. */
   test.afterAll(async () => {
     const { supabase: educatorDb } = await clientAs('educator');
-    const { data: me } = await educatorDb.from('educators').select('id, verification_status').single();
-    await educatorDb.auth.signOut({ scope: 'local' });
-    if (!me || me.verification_status === 'verified') return;
+    let me: { id: string; verification_status: string | null };
+    try {
+      const { data, error } = await educatorDb.from('educators').select('id, verification_status').single();
+      if (error || !data) throw new Error(`could not read the e2e educator: ${error?.message ?? 'no row'}`);
+      me = data;
+    } finally {
+      await educatorDb.auth.signOut({ scope: 'local' });
+    }
+    if (me.verification_status === 'verified') return;
 
     const { supabase: adminDb } = await clientAs('admin');
     try {
