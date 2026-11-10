@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { AppBar, Toolbar, Typography, Button, Box, Container, Drawer, IconButton, List, ListItemButton, ListItemText, Divider, Stack } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import SignOutButton from './SignOutButton';
+import NotificationBell from '@/components/notifications/NotificationBell';
+import type { HeaderNotifications } from '@/components/notifications/headerNotifications';
 
 // One list for the desktop bar and the phone menu (NAB-99). `visitorsOnly` links are hidden
 // from signed-in users, who already have an account (NAB-100).
@@ -16,6 +18,8 @@ export const NAV_LINKS = [
   { href: '/about', label: 'عن نبني' },
   { href: '/faq', label: 'الأسئلة الشائعة' },
 ] as const;
+
+const NO_ITEMS: HeaderNotifications['items'] = [];
 
 const capIcon = (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
@@ -45,8 +49,11 @@ function AccountActions({ signedIn, stacked = false }: { signedIn: boolean; stac
   );
 }
 
-/** `signedIn` swaps the login/register buttons for the dashboard link and sign-out (NAB-93). */
-export default function GlobalHeader({ signedIn = false }: { signedIn?: boolean }) {
+/**
+ * `signedIn` swaps the login/register buttons for the dashboard link and sign-out (NAB-93).
+ * `notifications` feeds the bell, shown to signed-in users only, on phones too (NAB-107).
+ */
+export default function GlobalHeader({ signedIn = false, notifications }: { signedIn?: boolean; notifications?: HeaderNotifications }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const links = NAV_LINKS.filter((link) => !('visitorsOnly' in link && link.visitorsOnly && signedIn));
 
@@ -86,6 +93,13 @@ export default function GlobalHeader({ signedIn = false }: { signedIn?: boolean 
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {signedIn && (
+              <NotificationBell
+                unreadCount={notifications?.unreadCount ?? 0}
+                items={notifications?.items ?? NO_ITEMS}
+                viewAllHref="/notifications"
+              />
+            )}
             {/* On phones the account buttons move into the menu to leave room for the logo. */}
             <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>
               <AccountActions signedIn={signedIn} />

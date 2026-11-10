@@ -73,6 +73,41 @@ describe('GlobalHeader (NAB-93)', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  describe('notifications bell (NAB-107)', () => {
+    const notifications = {
+      unreadCount: 2,
+      items: [{ id: 'n1', type: 'offer_accepted', title: 'تم قبول عرضك', body: null, link: null, data: {}, readAt: null, createdAt: '2026-11-10T10:00:00Z' }],
+    };
+
+    it('is not shown to visitors', () => {
+      render(<GlobalHeader notifications={notifications} />);
+      expect(screen.queryByRole('button', { name: 'الإشعارات' })).not.toBeInTheDocument();
+    });
+
+    it('shows signed-in users their unread count and latest notifications', () => {
+      render(<GlobalHeader signedIn notifications={notifications} />);
+      const bell = screen.getByRole('button', { name: 'الإشعارات' });
+      expect(bell.querySelector('.MuiBadge-badge')).toHaveTextContent('2');
+
+      fireEvent.click(bell);
+      const menu = screen.getByRole('dialog', { name: 'آخر الإشعارات' });
+      expect(within(menu).getByText('تم قبول عرضك')).toBeInTheDocument();
+      expect(within(menu).getByRole('link', { name: 'عرض الكل' })).toHaveAttribute('href', '/notifications');
+    });
+
+    it('stays outside the phone menu, so it is always one tap away', () => {
+      render(<GlobalHeader signedIn notifications={notifications} />);
+      const bell = screen.getByRole('button', { name: 'الإشعارات' });
+      expect(bell.closest('nav')).toBeNull();
+      expect(bell.parentElement).toBe(screen.getByRole('button', { name: 'القائمة' }).parentElement);
+    });
+
+    it('still shows an empty bell to a signed-in user without data', () => {
+      render(<GlobalHeader signedIn />);
+      expect(screen.getByRole('button', { name: 'الإشعارات' }).querySelector('.MuiBadge-badge')).toHaveClass('MuiBadge-invisible');
+    });
+  });
+
   describe('phone menu (NAB-99)', () => {
     it('opens from the menu button and lists every page link', async () => {
       render(<GlobalHeader />);

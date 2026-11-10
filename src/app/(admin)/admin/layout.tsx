@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import AdminNav from '@/components/admin/AdminNav';
 import AdminAccountActions from '@/components/admin/AdminAccountActions';
+import { getHeaderNotifications } from '@/components/notifications/headerNotifications';
 
 // The middleware only guarantees a signed-in user; the role check lives here so every /admin
 // page is covered. The database enforces the same rule through is_admin() (NAB-37).
@@ -20,6 +21,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (profile?.role !== 'admin' || !profile.is_active) redirect('/dashboard');
 
+  const notifications = await getHeaderNotifications();
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
       <Box component="header" sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: 2 }}>
@@ -28,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Typography variant="h6" fontWeight="bold" sx={{ whiteSpace: 'nowrap' }}>لوحة تحكم نبني</Typography>
             <AdminNav />
             <Box sx={{ flexGrow: 1 }} />
-            <AdminAccountActions />
+            <AdminAccountActions notifications={notifications} />
           </Stack>
         </Container>
       </Box>
