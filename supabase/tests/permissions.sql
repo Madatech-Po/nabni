@@ -782,6 +782,29 @@ BEGIN
     AND body NOT LIKE 'السبب:%' AND data->'reason' = 'null'::jsonb;
   PERFORM pg_temp.check(n = 1, 'admin cancelling without a reason sends request.closed_by_admin with the generic line');
 
+  -- Un-hiding to closed / cancelled is a restore, not a closure by the admin (NAB-118)
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_request_status(req8_id, 'removed', 'hide again');
+  PERFORM public.set_request_status(req8_id, 'closed');                         -- the UI's "إلغاء الإخفاء"
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = parent_uid AND type = 'request.restored'
+    AND title = 'تم إلغاء إخفاء طلبك'
+    AND body = 'طلبك ظاهر لك الآن لكنه مغلق، ويمكنك إعادة فتحه من صفحة الطلب.'
+    AND data->>'status' = 'closed' AND link = '/parent/requests/' || req8_id;
+  PERFORM pg_temp.check(n = 1, 'removed -> closed sends one request.restored "تم إلغاء إخفاء طلبك" (NAB-118)');
+  PERFORM pg_temp.act_as(admin_uid);
+  PERFORM public.set_request_status(req8_id, 'removed');
+  PERFORM public.set_request_status(req8_id, 'cancelled');
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = parent_uid AND type = 'request.restored'
+    AND title = 'تم إلغاء إخفاء طلبك' AND body = 'طلبك ظاهر لك الآن لكنه ملغى.' AND data->>'status' = 'cancelled';
+  PERFORM pg_temp.check(n = 1, 'removed -> cancelled sends one request.restored with the cancelled line (NAB-118)');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = parent_uid AND type = 'request.closed_by_admin';
+  PERFORM pg_temp.check(n = 2, 'un-hiding to closed / cancelled sends no request.closed_by_admin (NAB-118)');
+  SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = parent_uid AND type = 'request.restored'
+    AND title = 'تمت إعادة نشر طلبك';
+  PERFORM pg_temp.check(n = 1, 'only removed -> open says "تمت إعادة نشر طلبك" (NAB-118)');
+
   -- Account suspension and reactivation
   PERFORM pg_temp.act_as(admin_uid);
   PERFORM public.set_profile_active(parent_uid, false, ' fake requests ');
@@ -805,7 +828,7 @@ BEGIN
 
   -- Totals: exactly the expected events, and only to the parent
   SELECT count(*) INTO n FROM public.notifications WHERE recipient_id = parent_uid;
-  PERFORM pg_temp.check(n = 14, 'parent got exactly 4 received + 3 updated + 1 withdrawn + 4 request + 2 account');
+  PERFORM pg_temp.check(n = 18, 'parent got exactly 4 received + 3 updated + 1 withdrawn + 8 request + 2 account');
   SELECT count(*) INTO n FROM public.notifications
     WHERE recipient_id IN (educator_uid, educator2_uid, admin_uid)
       AND (type LIKE 'request.%' OR type LIKE 'account.%' OR type IN ('offer.received', 'offer.updated', 'offer.withdrawn'));

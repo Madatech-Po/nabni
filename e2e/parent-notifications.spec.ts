@@ -16,7 +16,8 @@ const RECEIVED = 'وصلك عرض جديد على طلبك';
 const UPDATED = 'عدّل المتخصص عرضه على طلبك';
 const WITHDRAWN = 'سحب المتخصص عرضه';
 const REMOVED = 'تم إخفاء طلبك من قِبل الإدارة';
-const CLOSED_BY_ADMIN = 'تم إغلاق طلبك من قِبل الإدارة';
+const UNHIDDEN = 'تم إلغاء إخفاء طلبك';
+const UNHIDDEN_BODY = 'طلبك ظاهر لك الآن لكنه مغلق، ويمكنك إعادة فتحه من صفحة الطلب.';
 
 type Row = { id: string; type: string; title: string; body: string | null; read_at: string | null };
 
@@ -217,19 +218,19 @@ test.describe('parent notifications (NAB-110)', () => {
     await expect(hiddenItem).toContainText(`السبب: ${reason}`);
     await expect(hiddenItem).toHaveAttribute('data-unread', 'true');
 
-    // Un-hide. The admin UI un-hides to "closed" (RequestModerationActions), so the parent gets
-    // "closed by the admin", not "تمت إعادة نشر طلبك", which the database sends only for
-    // removed -> open. Reported on NAB-110; update this when un-hiding reopens the request.
+    // Un-hide. The admin UI un-hides to "closed" (RequestModerationActions); the parent is told
+    // the request is visible again but closed (request.restored, NAB-118), not "closed by the admin".
     await row.getByRole('button', { name: 'إلغاء الإخفاء' }).click();
     await expect(row.getByText('مغلق', { exact: true })).toBeVisible();
-    await expect.poll(() => typesFor(requestId)).toEqual(['request.removed', 'request.closed_by_admin']);
+    await expect.poll(() => typesFor(requestId)).toEqual(['request.removed', 'request.restored']);
     const [, unhidden] = await notificationsFor(requestId);
-    expect(unhidden.title).toBe(CLOSED_BY_ADMIN);
+    expect(unhidden.title).toBe(UNHIDDEN);
+    expect(unhidden.body).toBe(UNHIDDEN_BODY);
     expect(unhidden.read_at).toBeNull();
 
     // Clicking the hide notification marks it read and opens the request page
     await parent.goto('/notifications');
-    await expectUnreadOnPage(parent, CLOSED_BY_ADMIN);
+    await expectUnreadOnPage(parent, UNHIDDEN);
     await expect(async () => {
       await hiddenItem.getByRole('button').first().click({ timeout: 1_000 });
       await expect(parent).toHaveURL(new RegExp(`/parent/requests/${requestId}$`), { timeout: 3_000 });
