@@ -4,12 +4,11 @@ import { useState } from 'react';
 import { Alert, Box, Button, TextField } from '@mui/material';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { ltrInput } from '@/utils/ltrInput';
 import { emailError } from '../register/registerFormValues';
 
 // Shown whatever Supabase answers, so the page never reveals which emails have an account.
 export const RESET_SENT = 'إذا كان البريد مسجلاً لدينا فستصلك رسالة لإعادة تعيين كلمة المرور';
-
-const ltrInput = { dir: 'ltr' as const, style: { textAlign: 'left' as const } };
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState('');

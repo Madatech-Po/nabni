@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Box, Button, TextField, Typography, Alert } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
+import { ltrInput } from '@/utils/ltrInput';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authErrorMessage, isEmailNotConfirmed, thrownAuthErrorMessage } from '@/utils/authErrors';
@@ -101,6 +102,7 @@ export default function LoginForm() {
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        inputProps={ltrInput}
         disabled={loading}
       />
       <TextField
@@ -111,6 +113,7 @@ export default function LoginForm() {
         required
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        inputProps={ltrInput}
         disabled={loading}
       />
       <Typography variant="body2" sx={{ textAlign: 'start' }}>

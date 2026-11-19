@@ -18,6 +18,12 @@ beforeEach(() => {
 });
 
 describe('ForgotPasswordForm', () => {
+  it('keeps the email left-to-right (NAB-137)', () => {
+    render(<ForgotPasswordForm />);
+
+    expect(screen.getByLabelText(/البريد الإلكتروني/)).toHaveAttribute('dir', 'ltr');
+  });
+
   it('asks for an email and sends nothing', async () => {
     render(<ForgotPasswordForm />);
 

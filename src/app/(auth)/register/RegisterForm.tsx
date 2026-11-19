@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Box, Button, TextField, Alert, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
+import { ltrInput } from '@/utils/ltrInput';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authErrorMessage, thrownAuthErrorMessage } from '@/utils/authErrors';
 import { safeNextPath } from '@/utils/safeRedirect';
@@ -12,9 +13,6 @@ import {
   type RegisterFormErrors,
   type RegisterFormValues,
 } from './registerFormValues';
-
-// Emails and passwords are Latin text: keep them left-to-right inside the RTL page.
-const ltrInput = { dir: 'ltr' as const, style: { textAlign: 'left' as const } };
 
 export default function RegisterForm() {
   const [values, setValues] = useState<RegisterFormValues>({ firstName: '', lastName: '', email: '', password: '' });

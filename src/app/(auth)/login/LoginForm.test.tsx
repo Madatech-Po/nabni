@@ -36,6 +36,13 @@ beforeEach(() => {
 });
 
 describe('LoginForm', () => {
+  it('keeps email and password left-to-right (NAB-137)', () => {
+    render(<LoginForm />);
+
+    expect(screen.getByLabelText(/البريد الإلكتروني/)).toHaveAttribute('dir', 'ltr');
+    expect(screen.getByLabelText(/كلمة المرور/)).toHaveAttribute('dir', 'ltr');
+  });
+
   it('links to the forgot-password page', () => {
     render(<LoginForm />);
 

@@ -59,3 +59,10 @@ test.describe('redirectTo after logging in as the e2e parent', () => {
     await page.waitForURL('**/parent/requests');
   });
 });
+
+test('email and password type left-to-right (NAB-137)', async ({ page }) => {
+  await page.goto('/login');
+
+  await expect(page.getByLabel('البريد الإلكتروني')).toHaveAttribute('dir', 'ltr');
+  await expect(page.getByLabel('كلمة المرور')).toHaveAttribute('dir', 'ltr');
+});

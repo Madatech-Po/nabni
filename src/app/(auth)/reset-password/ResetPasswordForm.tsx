@@ -5,12 +5,11 @@ import { Alert, Box, Button, CircularProgress, TextField } from '@mui/material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { ltrInput } from '@/utils/ltrInput';
 import { authErrorMessage } from '@/utils/authErrors';
 import { MIN_PASSWORD, passwordError } from '../register/registerFormValues';
 
 export const MISMATCH = 'كلمتا المرور غير متطابقتين';
-
-const ltrInput = { dir: 'ltr' as const, style: { textAlign: 'left' as const } };
 
 interface Errors {
   password?: string;

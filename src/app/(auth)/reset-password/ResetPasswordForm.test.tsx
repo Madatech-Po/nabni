@@ -25,6 +25,13 @@ beforeEach(() => {
 });
 
 describe('ResetPasswordForm', () => {
+  it('keeps both password fields left-to-right (NAB-137)', async () => {
+    render(<ResetPasswordForm />);
+
+    expect(await screen.findByLabelText(/^كلمة المرور الجديدة/)).toHaveAttribute('dir', 'ltr');
+    expect(screen.getByLabelText(/^تأكيد كلمة المرور/)).toHaveAttribute('dir', 'ltr');
+  });
+
   it('without a session, says to open the email link and offers a new one', async () => {
     getUser.mockResolvedValue({ data: { user: null }, error: { message: 'Auth session missing!' } });
     render(<ResetPasswordForm />);
