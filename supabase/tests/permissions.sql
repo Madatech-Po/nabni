@@ -999,4 +999,155 @@ BEGIN
   RAISE NOTICE 'All permission checks passed.';
 END $$;
 
+-- ---------- NAB-124: contact messages ----------
+DO $$
+DECLARE
+  cm_parent_uid   uuid := gen_random_uuid();
+  cm_educator_uid uuid := gen_random_uuid();
+  cm_admin_uid    uuid := gen_random_uuid();
+  msg_id          uuid;
+  msg2_id         uuid;
+  handled         timestamptz;
+  n               int;
+  admins_n        int := (SELECT count(*) FROM public.profiles WHERE role = 'admin' AND is_active) + 1;
+  nt              public.notifications%ROWTYPE;
+BEGIN
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
+    (cm_parent_uid,   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-cm-parent@example.invalid',
+     '{"full_name":"CM Parent","role":"parent"}', now(), now()),
+    (cm_educator_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-cm-educator@example.invalid',
+     '{"full_name":"CM Educator","role":"educator"}', now(), now()),
+    (cm_admin_uid,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-cm-admin@example.invalid',
+     '{"full_name":"CM Admin","role":"parent"}', now(), now());
+  UPDATE public.profiles SET role = 'admin' WHERE id = cm_admin_uid;
+
+  -- Anonymous visitor submits
+  PERFORM pg_temp.act_as(NULL);
+  msg_id := public.submit_contact_message('  زائر  ', ' Visitor@Example.invalid ', NULL, ' سؤال ', '  أريد أن أسأل عن المنصة  ');
+  PERFORM pg_temp.check(msg_id IS NOT NULL, 'anon can submit a contact message');
+  PERFORM pg_temp.check(pg_temp.denied(
+    $q$INSERT INTO public.contact_messages (name, email, message) VALUES ('x', 'x@y.zz', 'direct insert!!')$q$),
+    'anon cannot insert into contact_messages directly');
+  PERFORM pg_temp.check(pg_temp.denied('SELECT count(*) FROM public.contact_messages'),
+    'anon cannot read contact messages');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.mark_contact_message_handled(%L)$q$, msg_id)),
+    'anon cannot call mark_contact_message_handled');
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT name = 'زائر' AND email = 'visitor@example.invalid' AND subject = 'سؤال'
+        AND message = 'أريد أن أسأل عن المنصة' AND sender_id IS NULL AND handled_at IS NULL
+      FROM public.contact_messages WHERE id = msg_id),
+    'the message is stored trimmed, email lower-cased, no sender for anon');
+
+  -- Admins notified, nobody else
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE type = 'admin.contact_message' AND data->>'contact_message_id' = msg_id::text;
+  PERFORM pg_temp.check(n = admins_n, 'every active admin gets admin.contact_message once');
+  SELECT count(*) INTO n FROM public.notifications x JOIN public.profiles p ON p.id = x.recipient_id
+    WHERE x.data->>'contact_message_id' = msg_id::text AND NOT (p.role = 'admin' AND p.is_active);
+  PERFORM pg_temp.check(n = 0, 'nobody but active admins is notified of a contact message');
+  SELECT * INTO nt FROM public.notifications WHERE recipient_id = cm_admin_uid AND type = 'admin.contact_message';
+  PERFORM pg_temp.check(nt.title = 'رسالة جديدة من صفحة تواصل معنا' AND nt.body = 'زائر — سؤال'
+      AND nt.link = '/admin/messages',
+    'admin.contact_message has the title, name + subject body and link');
+
+  -- Validation (trimmed lengths)
+  PERFORM pg_temp.act_as(NULL);
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('   ', 'a@b.cc', NULL, NULL, 'long enough message')$q$, '23514'),
+    'blank name is rejected');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.submit_contact_message(%L, 'a@b.cc', NULL, NULL, 'long enough message')$q$, repeat('n', 101)), '23514'),
+    'name over 100 chars is rejected');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', NULL, NULL, NULL, 'long enough message')$q$, '23514'),
+    'a message without email or phone is rejected');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', ' ', '  ', NULL, 'long enough message')$q$, '23514'),
+    'blank email and phone count as missing');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', 'not-an-email', NULL, NULL, 'long enough message')$q$, '23514'),
+    'a malformed email is rejected');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', NULL, 'call me', NULL, 'long enough message')$q$, '23514'),
+    'a malformed phone is rejected');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.submit_contact_message('Name', 'a@b.cc', NULL, %L, 'long enough message')$q$, repeat('s', 151)), '23514'),
+    'subject over 150 chars is rejected');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', 'a@b.cc', NULL, NULL, '   short   ')$q$, '23514'),
+    'a message under 10 chars (trimmed) is rejected');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.submit_contact_message('Name', 'a@b.cc', NULL, NULL, %L)$q$, repeat('m', 2001)), '23514'),
+    'a message over 2000 chars is rejected');
+  msg2_id := public.submit_contact_message('Phone only', NULL, '+20 100 000 0000', NULL, 'call me back please');
+  PERFORM pg_temp.check(msg2_id IS NOT NULL, 'phone alone is enough to submit');
+
+  -- Rate limit: 5 per hour per email (case-insensitive)
+  FOR i IN 1..4 LOOP
+    PERFORM public.submit_contact_message('Visitor', 'VISITOR@example.invalid', NULL, NULL, 'message number ' || i);
+  END LOOP;
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Visitor', 'visitor@example.invalid', NULL, NULL, 'one message too many')$q$, 'PT429'),
+    'the 6th message in an hour from the same email is rate limited (PT429)');
+  PERFORM pg_temp.check(public.submit_contact_message('Visitor', 'other@example.invalid', NULL, NULL, 'a different address') IS NOT NULL,
+    'another email is not affected by that limit');
+
+  -- Rate limit: 5 per hour per signed-in sender, whatever the email
+  PERFORM pg_temp.act_as(cm_parent_uid);
+  FOR i IN 1..5 LOOP
+    PERFORM public.submit_contact_message('CM Parent', 'p' || i || '@example.invalid', NULL, NULL, 'parent message ' || i);
+  END LOOP;
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('CM Parent', 'p6@example.invalid', NULL, NULL, 'parent message 6')$q$, 'PT429'),
+    'the 6th message in an hour from the same signed-in sender is rate limited');
+  SELECT count(*) INTO n FROM public.contact_messages;
+  PERFORM pg_temp.check(n = 0, 'a parent cannot read contact messages, not even their own');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.contact_messages SET handled_at = now() WHERE id = %L$q$, msg_id)),
+    'a parent cannot update contact messages');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$DELETE FROM public.contact_messages WHERE id = %L$q$, msg_id)),
+    'a parent cannot delete contact messages');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.mark_contact_message_handled(%L)$q$, msg_id)),
+    'a parent cannot mark a message handled');
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT count(*) FROM public.contact_messages WHERE sender_id = cm_parent_uid) = 5,
+    'signed-in messages record sender_id');
+
+  -- Educator
+  PERFORM pg_temp.act_as(cm_educator_uid);
+  PERFORM pg_temp.check(public.submit_contact_message('CM Educator', NULL, '01012345678', 'دعم', 'educator needs help') IS NOT NULL,
+    'an educator can submit a contact message');
+  SELECT count(*) INTO n FROM public.contact_messages;
+  PERFORM pg_temp.check(n = 0, 'an educator cannot read contact messages');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.mark_contact_message_handled(%L)$q$, msg_id)),
+    'an educator cannot mark a message handled');
+  SELECT count(*) INTO n FROM public.notifications WHERE type = 'admin.contact_message';
+  PERFORM pg_temp.check(n = 0, 'an educator cannot read admin contact notifications');
+
+  -- Admin
+  PERFORM pg_temp.act_as(cm_admin_uid);
+  SELECT count(*) INTO n FROM public.contact_messages WHERE id IN (msg_id, msg2_id);
+  PERFORM pg_temp.check(n = 2, 'an admin reads contact messages');
+  PERFORM pg_temp.check(pg_temp.denied(format($q$UPDATE public.contact_messages SET handled_at = now() WHERE id = %L$q$, msg_id)),
+    'even an admin cannot update contact messages directly');
+  handled := public.mark_contact_message_handled(msg_id);
+  PERFORM pg_temp.check(handled IS NOT NULL, 'an admin marks a message handled');
+  PERFORM pg_temp.check(public.mark_contact_message_handled(msg_id) = handled, 'marking again returns the original handled_at');
+  PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.mark_contact_message_handled(%L)$q$, gen_random_uuid()), 'P0002'),
+    'an unknown message id is reported as not found');
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT handled_by FROM public.contact_messages WHERE id = msg_id) = cm_admin_uid,
+    'handled_by records the admin');
+  SELECT count(*) INTO n FROM public.admin_logs
+    WHERE action = 'contact_message.handled' AND target_type = 'contact_message' AND target_id = msg_id AND admin_id = cm_admin_uid;
+  PERFORM pg_temp.check(n = 1, 'handling is logged once in admin_logs');
+
+  -- An inactive admin is no longer an admin here
+  UPDATE public.profiles SET is_active = false WHERE id = cm_admin_uid;
+  PERFORM pg_temp.act_as(cm_admin_uid);
+  PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.mark_contact_message_handled(%L)$q$, msg2_id)),
+    'an inactive admin cannot mark a message handled');
+  SELECT count(*) INTO n FROM public.contact_messages;
+  PERFORM pg_temp.check(n = 0, 'an inactive admin cannot read contact messages');
+
+  RESET ROLE;
+  PERFORM pg_temp.check(NOT has_function_privilege('anon', 'public.mark_contact_message_handled(uuid)', 'EXECUTE')
+      AND has_function_privilege('anon', 'public.submit_contact_message(text, text, text, text, text)', 'EXECUTE')
+      AND has_function_privilege('authenticated', 'public.submit_contact_message(text, text, text, text, text)', 'EXECUTE')
+      AND NOT has_table_privilege('anon', 'public.contact_messages', 'SELECT')
+      AND NOT has_table_privilege('authenticated', 'public.contact_messages', 'INSERT')
+      AND NOT has_table_privilege('authenticated', 'public.contact_messages', 'UPDATE')
+      AND NOT has_table_privilege('authenticated', 'public.contact_messages', 'DELETE'),
+    'contact_messages grants: submit for everyone, no direct writes, mark-handled not for anon');
+  RAISE NOTICE 'NAB-124 contact message checks passed.';
+END $$;
+
 ROLLBACK;

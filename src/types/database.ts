@@ -265,6 +265,28 @@ export type Database = {
           { foreignKeyName: 'notifications_recipient_id_fkey'; columns: ['recipient_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
         ];
       };
+      contact_messages: {
+        Row: {
+          id: string;
+          name: string;
+          email: string | null;
+          phone: string | null;
+          subject: string | null;
+          message: string;
+          sender_id: string | null;
+          handled_at: string | null;
+          handled_by: string | null;
+          created_at: string;
+        };
+        // Written only by submit_contact_message() / mark_contact_message_handled() (NAB-124);
+        // only active admins can read it.
+        Insert: never;
+        Update: never;
+        Relationships: [
+          { foreignKeyName: 'contact_messages_sender_id_fkey'; columns: ['sender_id']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
+          { foreignKeyName: 'contact_messages_handled_by_fkey'; columns: ['handled_by']; isOneToOne: false; referencedRelation: 'profiles'; referencedColumns: ['id'] },
+        ];
+      };
     };
     Views: {
       educator_directory: {
@@ -312,6 +334,21 @@ export type Database = {
       remove_offer: { Args: { p_offer_id: string; p_reason?: string | null }; Returns: OfferStatus };
       mark_notification_read: { Args: { p_id: string }; Returns: undefined };
       mark_all_notifications_read: { Args: Record<string, never>; Returns: number };
+      // NAB-124: anon + authenticated. Errors: SQLSTATE 23514 with message contact_name_invalid /
+      // contact_email_invalid / contact_phone_invalid / contact_subject_invalid /
+      // contact_message_invalid / contact_reply_channel_required; PT429 contact_rate_limited.
+      submit_contact_message: {
+        Args: {
+          p_name: string;
+          p_email: string | null;
+          p_phone: string | null;
+          p_subject: string | null;
+          p_message: string;
+        };
+        Returns: string;
+      };
+      // NAB-124: admins only; returns handled_at (the original one if already handled).
+      mark_contact_message_handled: { Args: { p_id: string }; Returns: string };
       // Not executable by clients (EXECUTE revoked from anon/authenticated); listed for server-side use.
       notify: {
         Args: {
