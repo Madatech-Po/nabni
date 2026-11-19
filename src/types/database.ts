@@ -47,6 +47,14 @@ export type AdminPilotStats = {
   generated_at: string;
 };
 
+// public_home_stats() (NAB-123): aggregate counts only, callable by anyone.
+export type PublicHomeStats = {
+  verified_active_educators: number;
+  open_requests: number;
+  governorates_covered: number;
+  accepted_offers_total: number;
+};
+
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.15' };
   public: {
@@ -365,6 +373,8 @@ export type Database = {
       mark_contact_message_handled: { Args: { p_id: string }; Returns: string };
       // NAB-125: admins only (insufficient_privilege otherwise).
       admin_pilot_stats: { Args: Record<string, never>; Returns: AdminPilotStats };
+      // NAB-123: anon + authenticated.
+      public_home_stats: { Args: Record<string, never>; Returns: PublicHomeStats };
       // Not executable by clients (EXECUTE revoked from anon/authenticated); listed for server-side use.
       notify: {
         Args: {

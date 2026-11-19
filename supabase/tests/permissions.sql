@@ -1155,6 +1155,7 @@ END $$;
 -- with one taken after (b1 - b0 at a jsonb path).
 CREATE FUNCTION pg_temp.stat_delta(b0 jsonb, b1 jsonb, path text[]) RETURNS int
 LANGUAGE sql AS $$ SELECT (b1 #>> path)::int - (b0 #>> path)::int $$;
+GRANT EXECUTE ON FUNCTION pg_temp.stat_delta(jsonb, jsonb, text[]) TO anon, authenticated;
 
 DO $$
 DECLARE
@@ -1299,6 +1300,115 @@ BEGIN
       AND NOT has_function_privilege('authenticated', 'public.e2e_account_ids()', 'EXECUTE'),
     'anon cannot execute admin_pilot_stats; nobody can call e2e_account_ids directly');
   RAISE NOTICE 'NAB-125 pilot stats checks passed.';
+END $$;
+
+-- ---------- NAB-123: public home stats ----------
+DO $$
+DECLARE
+  hs_admin_uid    uuid := gen_random_uuid();
+  hs_parent_uid   uuid := gen_random_uuid();
+  hs_educator_uid uuid := gen_random_uuid();
+  hs_e2e_edu_uid  uuid := gen_random_uuid();
+  hs_edu_id       uuid;
+  hs_e2e_edu_id   uuid;
+  hs_req_open     uuid;
+  hs_req_match    uuid;
+  hs_offer        uuid;
+  service_id      smallint := (SELECT min(id) FROM public.service_categories);
+  place_id        smallint := (SELECT min(id) FROM public.teaching_places);
+  unit_id         smallint := (SELECT min(id) FROM public.pricing_units);
+  -- Two governorates no verified educator covers yet (NULL when every one is covered)
+  uncovered       smallint[] := ARRAY(
+    SELECT g.id FROM public.governorates g
+    WHERE g.id NOT IN (SELECT governorate_id FROM public.educators
+                       WHERE verification_status = 'verified' AND is_active AND governorate_id IS NOT NULL)
+      AND g.id NOT IN (SELECT lo.governorate_id FROM public.educator_locations lo
+                       JOIN public.educators e ON e.id = lo.educator_id
+                       WHERE e.verification_status = 'verified' AND e.is_active AND lo.governorate_id IS NOT NULL)
+    ORDER BY g.id LIMIT 2);
+  gov_real        smallint;
+  gov_e2e         smallint;
+  b0              jsonb;
+  b1              jsonb;
+BEGIN
+  gov_real := COALESCE(uncovered[1], (SELECT min(id) FROM public.governorates));
+  gov_e2e  := COALESCE(uncovered[2], gov_real);
+
+  PERFORM pg_temp.act_as(NULL);
+  b0 := public.public_home_stats();
+  PERFORM pg_temp.check((SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(b0) AS k)
+        = ARRAY['accepted_offers_total', 'governorates_covered', 'open_requests', 'verified_active_educators']
+      AND (SELECT bool_and(jsonb_typeof(v) = 'number') FROM jsonb_each(b0) AS x(k, v)),
+    'anon gets public_home_stats: exactly four numbers, nothing else');
+
+  RESET ROLE;
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
+    (hs_admin_uid,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-hs-admin@example.invalid',
+     '{"full_name":"HS Admin","role":"parent"}', now(), now()),
+    (hs_parent_uid,   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-hs-parent@example.invalid',
+     '{"full_name":"HS Parent","role":"parent"}', now(), now()),
+    (hs_educator_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-hs-educator@example.invalid',
+     '{"full_name":"HS Educator","role":"educator"}', now(), now()),
+    (hs_e2e_edu_uid,  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-hs+e2e-educator@example.invalid',
+     '{"full_name":"HS e2e Educator","role":"educator"}', now(), now());
+  UPDATE public.profiles SET role = 'admin' WHERE id = hs_admin_uid;
+
+  PERFORM pg_temp.act_as(hs_educator_uid);
+  INSERT INTO public.educators (user_id, full_name, phone, governorate_id, bio, experience_years, gender)
+    VALUES (hs_educator_uid, 'HS Educator', '01099990003', gov_real, 'bio', 4, 'female') RETURNING id INTO hs_edu_id;
+  INSERT INTO public.educator_locations (educator_id, governorate_id) VALUES (hs_edu_id, gov_real);
+  PERFORM pg_temp.act_as(hs_e2e_edu_uid);
+  INSERT INTO public.educators (user_id, full_name, phone, governorate_id, bio, experience_years, gender)
+    VALUES (hs_e2e_edu_uid, 'HS e2e Educator', '01099990004', gov_e2e, 'bio', 4, 'female') RETURNING id INTO hs_e2e_edu_id;
+  INSERT INTO public.educator_locations (educator_id, governorate_id) VALUES (hs_e2e_edu_id, gov_e2e);
+
+  PERFORM pg_temp.act_as(NULL);
+  b1 := public.public_home_stats();
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{verified_active_educators}') = 0
+      AND pg_temp.stat_delta(b0, b1, '{governorates_covered}') = 0,
+    'pending educators are not counted on the home page');
+
+  PERFORM pg_temp.act_as(hs_admin_uid);
+  PERFORM public.set_educator_verification(hs_edu_id, 'verified');
+  PERFORM public.set_educator_verification(hs_e2e_edu_id, 'verified');
+
+  PERFORM pg_temp.act_as(hs_parent_uid);
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (hs_parent_uid, service_id, place_id, gov_real, 8, 'home stats open ' || repeat('x', 60)) RETURNING id INTO hs_req_open;
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (hs_parent_uid, service_id, place_id, gov_real, 8, 'home stats match ' || repeat('x', 60)) RETURNING id INTO hs_req_match;
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (hs_parent_uid, service_id, place_id, gov_real, 8, '[E2E] home stats ' || repeat('x', 60));
+  PERFORM pg_temp.act_as(hs_educator_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (hs_req_match, hs_edu_id, 120, unit_id, 'Any day') RETURNING id INTO hs_offer;
+  PERFORM pg_temp.act_as(hs_parent_uid);
+  PERFORM public.accept_offer(hs_offer);
+
+  PERFORM pg_temp.act_as(NULL);
+  b1 := public.public_home_stats();
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{verified_active_educators}') = 1,
+    'a newly verified educator is counted; the verified e2e educator is not');
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{governorates_covered}') = CASE WHEN uncovered[1] IS NULL THEN 0 ELSE 1 END,
+    'the real educator''s governorate is covered; the e2e educator''s is not');
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{open_requests}') = 1,
+    'the open request is counted; the [E2E] one and the matched (closed) one are not');
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{accepted_offers_total}') = 1,
+    'the accepted offer is counted');
+
+  -- A suspended parent's open request leaves the public feed and the counter
+  PERFORM pg_temp.act_as(hs_admin_uid);
+  PERFORM public.set_profile_active(hs_parent_uid, false);
+  PERFORM pg_temp.act_as(hs_parent_uid);
+  b1 := public.public_home_stats();
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{open_requests}') = 0,
+    'open requests of suspended parents are not counted (and authenticated users can call it)');
+
+  RESET ROLE;
+  PERFORM pg_temp.check(has_function_privilege('anon', 'public.public_home_stats()', 'EXECUTE')
+      AND has_function_privilege('authenticated', 'public.public_home_stats()', 'EXECUTE'),
+    'public_home_stats is executable by anon and authenticated');
+  RAISE NOTICE 'NAB-123 public home stats checks passed.';
 END $$;
 
 ROLLBACK;
