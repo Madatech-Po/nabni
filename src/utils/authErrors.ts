@@ -40,3 +40,10 @@ export function authErrorMessage(error: AuthErrorLike): string {
 export function isEmailNotConfirmed(error: AuthErrorLike): boolean {
   return error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message);
 }
+
+// For an auth call that threw instead of returning an error (offline, blocked request, DNS):
+// a thrown fetch error reads as the network message; anything that isn't an error object too.
+export function thrownAuthErrorMessage(thrown: unknown): string {
+  if (thrown instanceof Error) return authErrorMessage(thrown);
+  return NETWORK_ERROR;
+}

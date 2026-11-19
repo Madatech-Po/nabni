@@ -13,6 +13,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import RegisterForm from './RegisterForm';
+import { NETWORK_ERROR } from '@/utils/authErrors';
 
 async function fill(email: string, password: string) {
   await userEvent.type(screen.getByLabelText(/الاسم الأول/), 'منى');
@@ -64,6 +65,18 @@ describe('RegisterForm', () => {
     await fill('mona@example.com', 'secret1');
 
     expect(await screen.findByText(/هذا البريد مسجّل بالفعل/)).toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('recovers when sign-up throws instead of returning an error (NAB-136)', async () => {
+    signUp.mockRejectedValue(new TypeError('Failed to fetch'));
+    render(<RegisterForm />);
+
+    await fill('mona@example.com', 'secret1');
+
+    expect(await screen.findByText(NETWORK_ERROR)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'إنشاء حساب' })).toBeEnabled();
+    expect(screen.getByLabelText(/البريد الإلكتروني/)).toBeEnabled();
     expect(router.push).not.toHaveBeenCalled();
   });
 

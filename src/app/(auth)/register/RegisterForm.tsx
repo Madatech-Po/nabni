@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Box, Button, TextField, Alert, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { authErrorMessage } from '@/utils/authErrors';
+import { authErrorMessage, thrownAuthErrorMessage } from '@/utils/authErrors';
 import { safeNextPath } from '@/utils/safeRedirect';
 import {
   MIN_PASSWORD,
@@ -43,29 +43,37 @@ export default function RegisterForm() {
     if (Object.keys(found).length > 0) return;
 
     setLoading(true);
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: values.email.trim(),
-      password: values.password,
-      options: {
-        // The confirmation link lands on /auth/confirm, which verifies it and starts the session.
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
-        data: {
-          full_name: `${values.firstName.trim()} ${values.lastName.trim()}`.trim(),
-          role: role,
+    // A request that fails outright (offline, blocked) throws: show why and free the button (NAB-136).
+    let signedIn = false;
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: values.email.trim(),
+        password: values.password,
+        options: {
+          // The confirmation link lands on /auth/confirm, which verifies it and starts the session.
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          data: {
+            full_name: `${values.firstName.trim()} ${values.lastName.trim()}`.trim(),
+            role: role,
+          },
         },
-      },
-    });
+      });
 
-    if (signUpError) {
-      setError(authErrorMessage(signUpError));
-      setLoading(false);
-    } else if (!data.session) {
-      // Email confirmation is on: there is no session until the link is clicked.
-      setConfirmEmailSent(true);
-      setLoading(false);
-    } else {
-      router.push(redirectTo);
-      router.refresh();
+      if (signUpError) {
+        setError(authErrorMessage(signUpError));
+      } else if (!data.session) {
+        // Email confirmation is on: there is no session until the link is clicked.
+        setConfirmEmailSent(true);
+      } else {
+        signedIn = true;
+        router.push(redirectTo);
+        router.refresh();
+      }
+    } catch (thrown) {
+      setError(thrownAuthErrorMessage(thrown));
+    } finally {
+      // Stay busy while a signed-in user is being sent on, as before.
+      if (!signedIn) setLoading(false);
     }
   };
 

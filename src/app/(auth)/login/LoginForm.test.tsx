@@ -124,6 +124,28 @@ describe('LoginForm', () => {
 
       expect(await screen.findByText(NETWORK_ERROR)).toBeInTheDocument();
     });
+
+    it('recovers when sign-in throws instead of returning an error (NAB-136)', async () => {
+      signInWithPassword.mockRejectedValue(new TypeError('Failed to fetch'));
+      render(<LoginForm />);
+
+      await logIn();
+
+      expect(await screen.findByText(NETWORK_ERROR)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'دخول' })).toBeEnabled();
+      expect(screen.getByLabelText(/البريد الإلكتروني/)).toBeEnabled();
+      expect(router.push).not.toHaveBeenCalled();
+    });
+
+    it('shows the network message for a non-error throw (NAB-136)', async () => {
+      signInWithPassword.mockRejectedValue('offline');
+      render(<LoginForm />);
+
+      await logIn();
+
+      expect(await screen.findByText(NETWORK_ERROR)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'دخول' })).toBeEnabled();
+    });
   });
 
   describe('unconfirmed email (NAB-126)', () => {
@@ -165,6 +187,18 @@ describe('LoginForm', () => {
       await userEvent.click(await screen.findByRole('button', { name: RESEND_LABEL }));
 
       expect(await screen.findByText(/انتظر قليلاً/)).toBeInTheDocument();
+      expect(screen.queryByText(RESEND_SENT)).not.toBeInTheDocument();
+    });
+
+    it('recovers when the resend throws (NAB-136)', async () => {
+      resend.mockRejectedValue(new TypeError('Failed to fetch'));
+      render(<LoginForm />);
+
+      await logIn();
+      await userEvent.click(await screen.findByRole('button', { name: RESEND_LABEL }));
+
+      expect(await screen.findByText(NETWORK_ERROR)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: RESEND_LABEL })).toBeEnabled();
       expect(screen.queryByText(RESEND_SENT)).not.toBeInTheDocument();
     });
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NETWORK_ERROR, authErrorMessage, isEmailNotConfirmed } from './authErrors';
+import { NETWORK_ERROR, authErrorMessage, isEmailNotConfirmed, thrownAuthErrorMessage } from './authErrors';
 
 describe('authErrorMessage', () => {
   it('translates by error code', () => {
@@ -58,5 +58,20 @@ describe('isEmailNotConfirmed', () => {
     expect(isEmailNotConfirmed({ code: 'email_not_confirmed', message: 'x' })).toBe(true);
     expect(isEmailNotConfirmed({ message: 'Email not confirmed' })).toBe(true);
     expect(isEmailNotConfirmed({ code: 'invalid_credentials', message: 'Invalid login credentials' })).toBe(false);
+  });
+});
+
+describe('thrownAuthErrorMessage (NAB-136)', () => {
+  it('shows the network message for a thrown fetch failure', () => {
+    expect(thrownAuthErrorMessage(new TypeError('Failed to fetch'))).toBe(NETWORK_ERROR);
+  });
+
+  it('shows the network message for a throw that is not an error', () => {
+    expect(thrownAuthErrorMessage('offline')).toBe(NETWORK_ERROR);
+    expect(thrownAuthErrorMessage(undefined)).toBe(NETWORK_ERROR);
+  });
+
+  it('maps other thrown errors like returned ones', () => {
+    expect(thrownAuthErrorMessage(new Error('Invalid login credentials'))).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
   });
 });

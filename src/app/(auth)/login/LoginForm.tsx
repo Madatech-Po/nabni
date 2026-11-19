@@ -5,7 +5,7 @@ import { Box, Button, TextField, Typography, Alert } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { authErrorMessage, isEmailNotConfirmed } from '@/utils/authErrors';
+import { authErrorMessage, isEmailNotConfirmed, thrownAuthErrorMessage } from '@/utils/authErrors';
 import { safeNextPath } from '@/utils/safeRedirect';
 
 // Set by /auth/confirm when an email link is expired, already used or broken.
@@ -34,33 +34,44 @@ export default function LoginForm() {
     setUnconfirmed(false);
     setResendState('idle');
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    // A request that fails outright (offline, blocked) throws: show why and free the button (NAB-136).
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (signInError) {
-      setError(authErrorMessage(signInError));
-      setUnconfirmed(isEmailNotConfirmed(signInError));
-    } else {
-      router.push(redirectTo);
-      router.refresh();
+      if (signInError) {
+        setError(authErrorMessage(signInError));
+        setUnconfirmed(isEmailNotConfirmed(signInError));
+      } else {
+        router.push(redirectTo);
+        router.refresh();
+      }
+    } catch (thrown) {
+      setError(thrownAuthErrorMessage(thrown));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleResend = async () => {
     setResendState('sending');
-    const { error: resendError } = await supabase.auth.resend({
-      type: 'signup',
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
-    });
-    if (resendError) {
-      setError(authErrorMessage(resendError));
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      });
+      if (resendError) {
+        setError(authErrorMessage(resendError));
+        setResendState('idle');
+      } else {
+        setResendState('sent');
+      }
+    } catch (thrown) {
+      setError(thrownAuthErrorMessage(thrown));
       setResendState('idle');
-    } else {
-      setResendState('sent');
     }
   };
 
