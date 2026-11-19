@@ -42,6 +42,17 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+-- Same, but the error message (the app's error key) must match too.
+CREATE FUNCTION pg_temp.fails_with(sql text, state text, msg text) RETURNS boolean
+LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE sql;
+  RETURN false;
+EXCEPTION WHEN OTHERS THEN
+  RETURN SQLSTATE = state AND SQLERRM = msg;
+END;
+$$;
+
 CREATE FUNCTION pg_temp.act_as(uid uuid) RETURNS void
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -57,7 +68,7 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION pg_temp.check(boolean, text), pg_temp.denied(text), pg_temp.act_as(uuid),
-  pg_temp.fails_with(text, text)
+  pg_temp.fails_with(text, text), pg_temp.fails_with(text, text, text)
   TO anon, authenticated;
 
 DO $$
@@ -1092,6 +1103,18 @@ BEGIN
     'a malformed email is rejected');
   PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', NULL, 'call me', NULL, 'long enough message')$q$, '23514'),
     'a malformed phone is rejected');
+  -- NAB-140: a phone of only formatting characters is rejected (contact_phone_invalid); '---' and
+  -- '+()' fail the 6-char minimum, '------' and '+ ( ) -' need the digit rule (027)
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', NULL, '---', NULL, 'long enough message')$q$, '23514', 'contact_phone_invalid'),
+    'phone "---" is rejected with contact_phone_invalid');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', NULL, '+()', NULL, 'long enough message')$q$, '23514', 'contact_phone_invalid'),
+    'phone "+()" is rejected with contact_phone_invalid');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', NULL, '------', NULL, 'long enough message')$q$, '23514', 'contact_phone_invalid'),
+    'phone "------" (no digit) is rejected with contact_phone_invalid');
+  PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', 'a@example.invalid', '+ ( ) -', NULL, 'long enough message')$q$, '23514', 'contact_phone_invalid'),
+    'phone "+ ( ) -" (no digit) is rejected even when an email is given');
+  PERFORM pg_temp.check(public.submit_contact_message('Name', 'phone-fmt@example.invalid', '(010) 1234-5678', NULL, 'formatted phone number') IS NOT NULL,
+    'a normally formatted phone number still passes');
   PERFORM pg_temp.check(pg_temp.fails_with(format($q$SELECT public.submit_contact_message('Name', 'a@b.cc', NULL, %L, 'long enough message')$q$, repeat('s', 151)), '23514'),
     'subject over 150 chars is rejected');
   PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Name', 'a@b.cc', NULL, NULL, '   short   ')$q$, '23514'),
@@ -1345,14 +1368,20 @@ DECLARE
   service_id      smallint := (SELECT min(id) FROM public.service_categories);
   place_id        smallint := (SELECT min(id) FROM public.teaching_places);
   unit_id         smallint := (SELECT min(id) FROM public.pricing_units);
-  -- Two governorates no verified educator covers yet (NULL when every one is covered)
+  -- Two governorates no counted educator covers yet (NULL when every one is covered). "Counted"
+  -- uses the same exclusions as public_home_stats (025): verified, active, not an e2e-email
+  -- account and not an [E2E]-named educator (NAB-140).
   uncovered       smallint[] := ARRAY(
     SELECT g.id FROM public.governorates g
-    WHERE g.id NOT IN (SELECT governorate_id FROM public.educators
-                       WHERE verification_status = 'verified' AND is_active AND governorate_id IS NOT NULL)
+    WHERE g.id NOT IN (SELECT e.governorate_id FROM public.educators e
+                       WHERE e.verification_status = 'verified' AND e.is_active AND e.governorate_id IS NOT NULL
+                         AND e.user_id NOT IN (SELECT id FROM public.e2e_account_ids() AS id)
+                         AND COALESCE(e.full_name, '') NOT LIKE '[E2E]%')
       AND g.id NOT IN (SELECT lo.governorate_id FROM public.educator_locations lo
                        JOIN public.educators e ON e.id = lo.educator_id
-                       WHERE e.verification_status = 'verified' AND e.is_active AND lo.governorate_id IS NOT NULL)
+                       WHERE e.verification_status = 'verified' AND e.is_active AND lo.governorate_id IS NOT NULL
+                         AND e.user_id NOT IN (SELECT id FROM public.e2e_account_ids() AS id)
+                         AND COALESCE(e.full_name, '') NOT LIKE '[E2E]%')
     ORDER BY g.id LIMIT 2);
   gov_real        smallint;
   gov_e2e         smallint;
