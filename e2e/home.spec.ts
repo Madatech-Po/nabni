@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 // The home page shows only real data (NAB-123). Live data changes, so these checks never
 // expect exact counts: only that nothing made up is shown.
@@ -83,4 +83,39 @@ test('a service card opens the directory filtered to that service (NAB-129)', as
 
   await expect(page).toHaveURL(/\/educators\?subject=\d+$/);
   await expect(page.getByRole('combobox', { name: 'الخدمة' })).toHaveText(name);
+});
+
+test.describe('home search (NAB-130)', () => {
+  const searchBox = (page: Page) =>
+    page.getByRole('textbox', { name: 'ابحث عن متخصص، مادة، أو محافظة' });
+
+  test('Enter searches the directory and the results match the term', async ({ page }) => {
+    // Search by the name of a real educator from the directory, so there is always a match.
+    const directory = await page.context().newPage();
+    await directory.goto('/educators');
+    await directory.waitForLoadState('load');
+    const names = await directory.locator('.MuiCard-root h6').allInnerTexts();
+    const total = names.length;
+    await directory.close();
+    test.skip(total === 0, 'no educators in the directory');
+    // The longest word of the name: specific enough to narrow the list.
+    const term = names[0].trim().split(/\s+/).reduce((a, b) => (b.length > a.length ? b : a));
+
+    await searchBox(page).fill(term);
+    await searchBox(page).press('Enter');
+
+    await expect(page).toHaveURL((url) => url.pathname === '/educators' && url.searchParams.get('q') === term);
+    await expect(page.getByText(`البحث: ${term}`)).toBeVisible();
+    const cards = page.locator('.MuiCard-root');
+    await expect(cards.first()).toBeVisible();
+    expect(await cards.count()).toBeLessThanOrEqual(total);
+    await expect(cards.filter({ hasText: names[0].trim() })).not.toHaveCount(0);
+  });
+
+  test('an empty search opens the whole directory', async ({ page }) => {
+    await searchBox(page).press('Enter');
+
+    await expect(page).toHaveURL(/\/educators$/);
+    await expect(page.getByText(/البحث:/)).toHaveCount(0);
+  });
 });

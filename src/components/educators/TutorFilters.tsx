@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Box, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, Button } from '@mui/material';
+import { Box, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent, Button, Chip } from '@mui/material';
 import { X } from 'lucide-react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { getGovernorates, getServiceCategories, Governorate, ServiceCategory } from '@/services/lookups';
@@ -16,6 +16,8 @@ export default function TutorFilters() {
 
   const currentSubject = searchParams.get('subject') || '';
   const currentGovernorate = searchParams.get('governorate') || '';
+  // The free-text search from the home page (NAB-130).
+  const currentQuery = searchParams.get('q')?.trim() || '';
 
   useEffect(() => {
     Promise.all([getGovernorates(), getServiceCategories()])
@@ -32,10 +34,11 @@ export default function TutorFilters() {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
-    router.push(`${pathname}?${params.toString()}`);
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
   }
 
-  const hasFilters = Boolean(currentSubject || currentGovernorate);
+  const hasFilters = Boolean(currentSubject || currentGovernorate || currentQuery);
 
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 4 }}>
@@ -72,6 +75,13 @@ export default function TutorFilters() {
           ))}
         </Select>
       </FormControl>
+
+      {currentQuery && (
+        <Chip
+          label={`البحث: ${currentQuery}`}
+          onDelete={() => updateParam('q', '')}
+        />
+      )}
 
       {hasFilters && (
         <Button startIcon={<X size={16} />} onClick={() => router.push(pathname)} color="inherit">

@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { sanitizeSearch } from '@/utils/searchText';
 import type {
   AdminPilotStats, EducatorGender, EducatorVerificationStatus, OfferStatus, RequestStatus, Tables,
 } from '@/types/database';
@@ -25,12 +26,6 @@ export interface AdminEducatorItem {
 export interface AdminEducatorFilters {
   status?: EducatorVerificationStatus;
   q?: string;
-}
-
-// Keep only Arabic/Latin letters, digits, spaces and '+', which are safe inside a PostgREST
-// or() filter value (no commas, parentheses, dots or wildcards).
-function sanitizeSearch(q: string): string {
-  return q.replace(/[^\u0600-\u06FFa-zA-Z0-9\s+]/g, '').trim().slice(0, 50);
 }
 
 export async function getEducatorsForReview(filters: AdminEducatorFilters = {}): Promise<AdminEducatorItem[]> {

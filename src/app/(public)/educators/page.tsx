@@ -7,13 +7,14 @@ import TutorCard from '@/components/educators/TutorCard';
 
 export default async function EducatorsPage(
   props: {
-    searchParams: Promise<{ subject?: string; governorate?: string }>;
+    searchParams: Promise<{ subject?: string; governorate?: string; q?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
   const tutors = await getEducators({
     serviceCategoryId: parsePositiveIntId(searchParams.subject),
     governorateId: parsePositiveIntId(searchParams.governorate),
+    q: typeof searchParams.q === 'string' ? searchParams.q : undefined,
   });
 
   return (

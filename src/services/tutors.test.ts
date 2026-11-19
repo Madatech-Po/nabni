@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { argsOf, createSupabaseMock, hasCall, type RecordedQuery } from '@/test/supabaseMock';
+import { allArgsOf, argsOf, createSupabaseMock, hasCall, type RecordedQuery } from '@/test/supabaseMock';
 
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: async () => mock.client }));
@@ -74,5 +74,69 @@ describe('getEducators', () => {
     );
 
     await expect(getEducators()).rejects.toMatchObject({ message: 'down' });
+  });
+
+  describe('free-text search (NAB-130)', () => {
+    // Name lookups (made with ilike) return the matching ids; the subject-name lookup returns all.
+    function respondSearch(serviceIds: number[], governorateIds: number[]) {
+      return (q: RecordedQuery) => {
+        const isLookup = hasCall(q, 'ilike');
+        if (q.table === 'educator_directory') return { data: [] };
+        if (q.table === 'service_categories') return { data: isLookup ? serviceIds.map((id) => ({ id })) : categories };
+        if (q.table === 'governorates') return { data: governorateIds.map((id) => ({ id })) };
+        return undefined;
+      };
+    }
+
+    it('matches the name or bio when no service or governorate name matches', async () => {
+      mock = createSupabaseMock(respondSearch([], []));
+
+      await getEducators({ q: 'منى' });
+
+      expect(argsOf(mock.on('educator_directory')[0], 'or')).toEqual(['full_name.ilike.*منى*,bio.ilike.*منى*']);
+      expect(argsOf(mock.on('governorates')[0], 'ilike')).toEqual(['name_ar', '%منى%']);
+    });
+
+    it('also matches services and governorates whose names contain the term', async () => {
+      mock = createSupabaseMock(respondSearch([7], [2]));
+
+      await getEducators({ q: 'تخاطب' });
+
+      expect(argsOf(mock.on('educator_directory')[0], 'or')).toEqual([
+        'full_name.ilike.*تخاطب*,bio.ilike.*تخاطب*,subject_ids.cs.{7},governorate_id.eq.2,location_governorate_ids.cs.{2}',
+      ]);
+    });
+
+    it('sanitises the term before it reaches a filter', async () => {
+      mock = createSupabaseMock(respondSearch([], []));
+
+      await getEducators({ q: '  a,b)*%(c.  ' });
+
+      expect(argsOf(mock.on('educator_directory')[0], 'or')).toEqual(['full_name.ilike.*abc*,bio.ilike.*abc*']);
+    });
+
+    it('ignores a term that is empty after sanitising', async () => {
+      await getEducators({ q: ' %,() ' });
+
+      expect(hasCall(mock.on('educator_directory')[0], 'or')).toBe(false);
+      expect(mock.on('governorates')).toHaveLength(0);
+    });
+
+    it('combines with the governorate filter', async () => {
+      mock = createSupabaseMock(respondSearch([], []));
+
+      await getEducators({ governorateId: 3, q: 'منى' });
+
+      expect(allArgsOf(mock.on('educator_directory')[0], 'or')).toEqual([
+        ['governorate_id.eq.3,location_governorate_ids.cs.{3}'],
+        ['full_name.ilike.*منى*,bio.ilike.*منى*'],
+      ]);
+    });
+
+    it('throws when a name lookup fails', async () => {
+      mock = createSupabaseMock((q) => (q.table === 'governorates' ? { error: { message: 'down' } } : { data: [] }));
+
+      await expect(getEducators({ q: 'منى' })).rejects.toMatchObject({ message: 'down' });
+    });
   });
 });

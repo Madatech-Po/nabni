@@ -9,6 +9,7 @@ vi.mock('@/services/homeStats', () => ({ getPublicHomeStats: () => getPublicHome
 vi.mock('@/services/tutors', () => ({ getEducators: () => getEducators() }));
 vi.mock('@/services/requests', () => ({ getOpenRequests: () => getOpenRequests() }));
 vi.mock('@/services/homeCategories', () => ({ getHomeServiceCategories: () => getHomeServiceCategories() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('embla-carousel-react', () => ({ default: () => [vi.fn(), undefined] }));
 vi.mock('embla-carousel-autoplay', () => ({ default: () => ({}) }));
 
