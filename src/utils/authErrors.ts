@@ -10,6 +10,7 @@ const BY_CODE: Record<string, string> = {
   signup_disabled: 'التسجيل متوقف حالياً',
   invalid_credentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
   email_not_confirmed: 'أكّد بريدك الإلكتروني أولاً من الرسالة التي أرسلناها لك',
+  same_password: 'كلمة المرور الجديدة يجب أن تختلف عن القديمة',
 };
 
 const BY_MESSAGE: [RegExp, string][] = [
@@ -19,6 +20,7 @@ const BY_MESSAGE: [RegExp, string][] = [
   [/invalid format|invalid email/i, BY_CODE.email_address_invalid],
   [/invalid login credentials/i, BY_CODE.invalid_credentials],
   [/email not confirmed/i, BY_CODE.email_not_confirmed],
+  [/different from the old password/i, BY_CODE.same_password],
 ];
 
 export function authErrorMessage(error: { code?: string; message: string }): string {

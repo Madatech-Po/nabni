@@ -16,6 +16,12 @@ describe('authErrorMessage', () => {
       .toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
   });
 
+  it('explains reusing the old password when resetting it', () => {
+    expect(authErrorMessage({ code: 'same_password', message: 'x' })).toBe('كلمة المرور الجديدة يجب أن تختلف عن القديمة');
+    expect(authErrorMessage({ message: 'New password should be different from the old password.' }))
+      .toBe('كلمة المرور الجديدة يجب أن تختلف عن القديمة');
+  });
+
   it('never shows raw English for an unknown error', () => {
     expect(authErrorMessage({ code: 'something_new', message: 'Something new went wrong' }))
       .toBe('حدث خطأ غير متوقع — حاول مرة أخرى');

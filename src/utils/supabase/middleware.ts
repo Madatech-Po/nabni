@@ -1,6 +1,16 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Pages that need a signed-in user. /reset-password is deliberately not here: it shows its own
+// "open the link from the email" message without a session, and the recovery link signs the user in.
+export const PROTECTED_PREFIXES = [
+  '/dashboard', '/parent', '/teacher', '/admin', '/requests/new', '/profile/edit', '/notifications',
+];
+
+export function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix)) || pathname.endsWith('/proposal');
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -61,11 +71,7 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   
-  // Define exact protected prefixes
-  const protectedPrefixes = ['/dashboard', '/parent', '/teacher', '/admin', '/requests/new', '/profile/edit'];
-  const isProtected = protectedPrefixes.some(prefix => pathname.startsWith(prefix)) || pathname.endsWith('/proposal');
-
-  if (isProtected && !user) {
+  if (isProtectedPath(pathname) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirectTo', pathname);

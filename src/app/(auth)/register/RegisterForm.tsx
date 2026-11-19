@@ -46,6 +46,8 @@ export default function RegisterForm() {
       email: values.email.trim(),
       password: values.password,
       options: {
+        // The confirmation link lands on /auth/confirm, which verifies it and starts the session.
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
         data: {
           full_name: `${values.firstName.trim()} ${values.lastName.trim()}`.trim(),
           role: role,

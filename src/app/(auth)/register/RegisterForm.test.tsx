@@ -76,6 +76,16 @@ describe('RegisterForm', () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
+  it('sends the confirmation link to /auth/confirm on this site', async () => {
+    signUp.mockResolvedValue({ data: { user: { id: 'u1' }, session: null }, error: null });
+    render(<RegisterForm />);
+
+    await fill('mona@example.com', 'secret1');
+
+    await vi.waitFor(() => expect(signUp).toHaveBeenCalled());
+    expect(signUp.mock.calls[0][0].options.emailRedirectTo).toBe(`${window.location.origin}/auth/confirm`);
+  });
+
   it('goes to the dashboard when sign-up logs the user in', async () => {
     signUp.mockResolvedValue({ data: { user: { id: 'u1' }, session: { access_token: 't' } }, error: null });
     render(<RegisterForm />);
