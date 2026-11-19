@@ -78,10 +78,23 @@ $env:E2E_PORT = '8787'; npx playwright test   # in a second terminal, against th
 
 The build reads `NEXT_PUBLIC_SUPABASE_*` from `.env.local`, as `next build` does.
 
-**Do not deploy from your machine** (`npm run deploy` locally). OpenNext copies the values of the
-`.env*` files it finds, including `.env.local`, into the worker bundle, and locally that file also
-holds the e2e account passwords. CI builds from a clean checkout without `.env.local`, so deploy
-through CI.
+`npm run preview` only runs the worker locally (`wrangler dev`); it never uploads anything, so it may
+read `.env.local`.
+
+## Deploys only from CI, never with secrets in the bundle
+
+OpenNext copies the values of the `.env*` files it finds, including `.env.local`, into the worker
+bundle (`.open-next/cloudflare/next-env.mjs`), and locally that file also holds the e2e account
+passwords. CI builds from a clean checkout without `.env.local`. So `npm run deploy` runs two guards
+(`scripts/guard-deploy.mjs`):
+
+1. **Before the build:** it refuses to run unless `CI=true`. Deploy by pushing to `main`.
+2. **After the build, before the upload:** it fails if `next-env.mjs` holds any variable that is not
+   `NEXT_PUBLIC_*`, or if any file in `.open-next/` names an `E2E_*`, `*SERVICE_ROLE*` or `*_SECRET*`
+   variable. It prints the names and files, never the values.
+
+If you really must deploy from your machine, move `.env.local` aside and set
+`NABNI_ALLOW_LOCAL_DEPLOY=1`; the bundle check still runs.
 
 `npm run cf-typegen` writes `cloudflare-env.d.ts` (ignored by git) with types for the worker
 bindings, should code ever need `getCloudflareContext().env`.

@@ -1,7 +1,14 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  checkDeployAllowed,
+  findForbiddenNames,
+  findNonPublicEnvKeys,
+  scanBundle,
+} from '../../scripts/guard-deploy.mjs';
 
 // Guards the Cloudflare Workers setup (NAB-127): see DEPLOYMENT.md.
 vi.mock('@opennextjs/cloudflare', () => ({ initOpenNextCloudflareForDev: vi.fn() }));
@@ -53,10 +60,16 @@ describe('next.config.mjs', () => {
 describe('package.json scripts', () => {
   const { scripts } = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
 
-  it('builds with OpenNext before previewing or deploying', () => {
-    expect(scripts.preview).toBe('opennextjs-cloudflare build && opennextjs-cloudflare preview');
-    expect(scripts.deploy).toBe('opennextjs-cloudflare build && opennextjs-cloudflare deploy');
+  it('deploys only after the CI guard, the OpenNext build and the bundle scan, in that order', () => {
+    expect(scripts.deploy).toBe(
+      'node scripts/guard-deploy.mjs env && opennextjs-cloudflare build && node scripts/guard-deploy.mjs bundle && opennextjs-cloudflare deploy',
+    );
     expect(scripts['cf-typegen']).toContain('wrangler types');
+  });
+
+  it('previews locally and never deploys', () => {
+    expect(scripts.preview).toBe('opennextjs-cloudflare build && opennextjs-cloudflare preview');
+    expect(scripts.preview).not.toMatch(/deploy|upload/);
   });
 
   it('keeps the plain Next.js scripts', () => {
@@ -88,5 +101,89 @@ describe('.gitignore', () => {
   it('keeps the OpenNext and Wrangler output and local secrets out of git', () => {
     const ignore = read('.gitignore').split(/\r?\n/);
     expect(ignore).toEqual(expect.arrayContaining(['/.open-next/', '/.wrangler/', '.dev.vars*']));
+  });
+});
+
+describe('deploy guard: who may deploy', () => {
+  it('refuses without CI and explains why', () => {
+    const result = checkDeployAllowed({});
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('runs only in CI');
+    expect(result.message).toContain('NABNI_ALLOW_LOCAL_DEPLOY=1');
+  });
+
+  it('refuses when CI is set to anything but true', () => {
+    expect(checkDeployAllowed({ CI: 'false' }).ok).toBe(false);
+    expect(checkDeployAllowed({ CI: '' }).ok).toBe(false);
+    expect(checkDeployAllowed({ NABNI_ALLOW_LOCAL_DEPLOY: 'yes' }).ok).toBe(false);
+  });
+
+  it('allows CI=true', () => {
+    expect(checkDeployAllowed({ CI: 'true' }).ok).toBe(true);
+  });
+
+  it('allows an explicit local override', () => {
+    expect(checkDeployAllowed({ NABNI_ALLOW_LOCAL_DEPLOY: '1' })).toEqual({
+      ok: true,
+      message: expect.stringContaining('still checked for secrets'),
+    });
+  });
+});
+
+describe('deploy guard: bundle scan', () => {
+  const fakeEnv = (vars: Record<string, string>) =>
+    ['production', 'development', 'test'].map((mode) => `export const ${mode} = ${JSON.stringify(vars)};\n`).join('');
+
+  let dir = '';
+  const makeBundle = (nextEnv: string, worker = 'export default {};') => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'nabni-bundle-'));
+    mkdirSync(path.join(dir, 'cloudflare'));
+    writeFileSync(path.join(dir, 'cloudflare', 'next-env.mjs'), nextEnv);
+    writeFileSync(path.join(dir, 'worker.js'), worker);
+    return dir;
+  };
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    dir = '';
+  });
+
+  it('names secret-looking variables, never their values', () => {
+    expect(
+      findForbiddenNames('{"E2E_PARENT_PASSWORD":"hunter2","SUPABASE_SERVICE_ROLE_KEY":"x","JWT_SECRET":"y"}'),
+    ).toEqual(['E2E_PARENT_PASSWORD', 'JWT_SECRET', 'SUPABASE_SERVICE_ROLE_KEY']);
+    expect(findForbiddenNames('{"NEXT_PUBLIC_SUPABASE_URL":"https://x.supabase.co"}')).toEqual([]);
+  });
+
+  it('allows only NEXT_PUBLIC_* keys in next-env.mjs', () => {
+    expect(findNonPublicEnvKeys(fakeEnv({ NEXT_PUBLIC_SUPABASE_URL: 'u', OTHER: 'v' }))).toEqual(['OTHER']);
+    expect(findNonPublicEnvKeys(fakeEnv({ NEXT_PUBLIC_SUPABASE_URL: 'u' }))).toEqual([]);
+    expect(() => findNonPublicEnvKeys('module.exports = {}')).toThrow(/unexpected format/);
+  });
+
+  it('flags a bundle that inlines E2E_PARENT_PASSWORD, without printing the value', () => {
+    const problems = scanBundle(
+      makeBundle(fakeEnv({ NEXT_PUBLIC_SUPABASE_URL: 'u', E2E_PARENT_PASSWORD: 'hunter2' })),
+    );
+    const report = problems.join(' ');
+    expect(report).toContain('E2E_PARENT_PASSWORD');
+    expect(report).not.toContain('hunter2');
+  });
+
+  it('flags a secret name anywhere in the worker output', () => {
+    const problems = scanBundle(makeBundle(fakeEnv({}), 'process.env.SUPABASE_SERVICE_ROLE_KEY'));
+    expect(problems).toEqual([expect.stringContaining('SUPABASE_SERVICE_ROLE_KEY')]);
+  });
+
+  it('passes a clean bundle (CI has no .env files)', () => {
+    expect(scanBundle(makeBundle(fakeEnv({})))).toEqual([]);
+  });
+
+  it('passes a bundle that inlines only NEXT_PUBLIC_* variables', () => {
+    expect(scanBundle(makeBundle(fakeEnv({ NEXT_PUBLIC_SUPABASE_URL: 'u', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'k' })))).toEqual([]);
+  });
+
+  it('fails closed when the bundle was not built', () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'nabni-bundle-'));
+    expect(scanBundle(dir)).toEqual([expect.stringContaining('not found')]);
   });
 });

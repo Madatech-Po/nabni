@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "node scripts/guard-deploy.mjs env && opennextjs-cloudflare build && node scripts/guard-deploy.mjs bundle && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "next lint --dir src --dir e2e",
     "db:introspect": "node scripts/db/introspect-schema.js",
