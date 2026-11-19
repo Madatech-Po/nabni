@@ -5,14 +5,14 @@ import { BookOpen, Languages, Calculator, Speech, Puzzle, Palette, BookText, Bra
 import Link from 'next/link';
 
 const CATEGORIES = [
-  { id: 'arabic', title: 'تأسيس لغة عربية', description: 'أسس طفلك في القراءة والكتابة', count: 42, icon: <BookOpen size={40} />, color: '#e3f2fd', iconColor: '#2196f3' },
-  { id: 'english', title: 'تأسيس لغة إنجليزية', description: 'مهارات اللغة الإنجليزية الأساسية', count: 67, icon: <Languages size={40} />, color: '#e8f5e9', iconColor: '#4caf50' },
-  { id: 'math', title: 'رياضيات', description: 'تبسيط المفاهيم الرياضية', count: 35, icon: <Calculator size={40} />, color: '#fff3e0', iconColor: '#ff9800' },
-  { id: 'speech', title: 'تخاطب', description: 'علاج تأخر النطق وصعوبات الكلام', count: 18, icon: <Speech size={40} />, color: '#fce4ec', iconColor: '#e91e63' },
-  { id: 'learning-difficulties', title: 'صعوبات تعلم', description: 'متخصصون في التعامل مع صعوبات التعلم', count: 24, icon: <Puzzle size={40} />, color: '#f3e5f5', iconColor: '#9c27b0' },
-  { id: 'montessori', title: 'مونتيسوري', description: 'التعلم من خلال أنشطة المونتيسوري', count: 12, icon: <Palette size={40} />, color: '#e0f7fa', iconColor: '#00bcd4' },
-  { id: 'quran', title: 'تحفيظ القرآن الكريم', description: 'تحفيظ وتجويد القرآن الكريم للأطفال', count: 55, icon: <BookText size={40} />, color: '#f1f8e9', iconColor: '#8bc34a' },
-  { id: 'skills', title: 'تنمية المهارات', description: 'تطوير المهارات الذهنية والحركية', count: 29, icon: <Brain size={40} />, color: '#fff8e1', iconColor: '#ffc107' },
+  { id: 'arabic', title: 'تأسيس لغة عربية', description: 'أسس طفلك في القراءة والكتابة', icon: <BookOpen size={40} />, color: '#e3f2fd', iconColor: '#2196f3' },
+  { id: 'english', title: 'تأسيس لغة إنجليزية', description: 'مهارات اللغة الإنجليزية الأساسية', icon: <Languages size={40} />, color: '#e8f5e9', iconColor: '#4caf50' },
+  { id: 'math', title: 'رياضيات', description: 'تبسيط المفاهيم الرياضية', icon: <Calculator size={40} />, color: '#fff3e0', iconColor: '#ff9800' },
+  { id: 'speech', title: 'تخاطب', description: 'علاج تأخر النطق وصعوبات الكلام', icon: <Speech size={40} />, color: '#fce4ec', iconColor: '#e91e63' },
+  { id: 'learning-difficulties', title: 'صعوبات تعلم', description: 'متخصصون في التعامل مع صعوبات التعلم', icon: <Puzzle size={40} />, color: '#f3e5f5', iconColor: '#9c27b0' },
+  { id: 'montessori', title: 'مونتيسوري', description: 'التعلم من خلال أنشطة المونتيسوري', icon: <Palette size={40} />, color: '#e0f7fa', iconColor: '#00bcd4' },
+  { id: 'quran', title: 'تحفيظ القرآن الكريم', description: 'تحفيظ وتجويد القرآن الكريم للأطفال', icon: <BookText size={40} />, color: '#f1f8e9', iconColor: '#8bc34a' },
+  { id: 'skills', title: 'تنمية المهارات', description: 'تطوير المهارات الذهنية والحركية', icon: <Brain size={40} />, color: '#fff8e1', iconColor: '#ffc107' },
 ];
 
 export default function CategoriesSection() {
@@ -74,10 +74,6 @@ export default function CategoriesSection() {
                     
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flexGrow: 1 }}>
                       {cat.description}
-                    </Typography>
-
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', bgcolor: 'primary.50', px: 2, py: 0.5, borderRadius: 4 }}>
-                      {cat.count} متخصص
                     </Typography>
                   </CardContent>
                 </Card>

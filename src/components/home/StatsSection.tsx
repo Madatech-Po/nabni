@@ -1,95 +1,56 @@
-'use client';
-
-import { useEffect, useState, useRef } from 'react';
 import { Box, Container, Grid, Paper, Typography } from '@mui/material';
-import { Users, GraduationCap, FileText, Star } from 'lucide-react';
+import { GraduationCap, FileText, MapPin, Handshake } from 'lucide-react';
+import type { ReactNode } from 'react';
+import type { PublicHomeStats } from '@/types/database';
 
-interface AnimatedCounterProps {
-  end: number;
-  suffix?: string;
+interface StatCard {
+  key: keyof PublicHomeStats;
+  icon: ReactNode;
+  label: string;
+  color: string;
 }
 
-function AnimatedCounter({ end, suffix = '' }: AnimatedCounterProps) {
-  const [count, setCount] = useState(0);
-  const countRef = useRef(0);
-  const [isVisible, setIsVisible] = useState(false);
-  const elementRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (elementRef.current) observer.observe(elementRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!isVisible) return;
-    
-    let startTime: number;
-    const duration = 2000; // 2 seconds
-
-    const step = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      
-      // Easing function: easeOutExpo
-      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const currentCount = Number((easeProgress * end).toFixed(end % 1 !== 0 ? 1 : 0));
-      
-      setCount(currentCount);
-
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      }
-    };
-
-    window.requestAnimationFrame(step);
-  }, [end, isVisible]);
-
-  return <span ref={elementRef}>{count}{suffix}</span>;
-}
-
-const stats = [
-  { icon: <GraduationCap size={40} color="#4dabf5" />, value: 850, suffix: '+', label: 'متخصص تعليمي', color: '#e3f2fd' },
-  { icon: <Users size={40} color="#81c784" />, value: 2400, suffix: '+', label: 'ولي أمر', color: '#e8f5e9' },
-  { icon: <FileText size={40} color="#ffb74d" />, value: 1750, suffix: '+', label: 'طلب تعليمي', color: '#fff3e0' },
-  { icon: <Star size={40} color="#ba68c8" />, value: 4.9, suffix: '', label: 'متوسط التقييم', color: '#f3e5f5' },
+// Real counts from public_home_stats() (NAB-123). It is a pilot, so the numbers are small:
+// they are shown as they are, without "+" or rounding up.
+const CARDS: StatCard[] = [
+  { key: 'verified_active_educators', icon: <GraduationCap size={40} color="#4dabf5" />, label: 'متخصص موثّق على نبني', color: '#e3f2fd' },
+  { key: 'open_requests', icon: <FileText size={40} color="#ffb74d" />, label: 'طلب مفتوح الآن', color: '#fff3e0' },
+  { key: 'governorates_covered', icon: <MapPin size={40} color="#81c784" />, label: 'محافظة يعمل فيها متخصصونا', color: '#e8f5e9' },
+  { key: 'accepted_offers_total', icon: <Handshake size={40} color="#ba68c8" />, label: 'اتفاق تم بين ولي أمر ومتخصص', color: '#f3e5f5' },
 ];
 
-export default function StatsSection() {
+export default function StatsSection({ stats }: { stats: PublicHomeStats | null }) {
+  // No numbers (the call failed): hide the section rather than show invented ones.
+  if (!stats) return null;
+
+  // A zero says nothing useful to a visitor, so only counts above zero get a card.
+  const cards = CARDS.filter((card) => stats[card.key] > 0);
+  if (cards.length === 0) return null;
+
   return (
-    <Box sx={{ py: 8, bgcolor: 'common.white' }}>
+    <Box component="section" aria-label="نبني بالأرقام" sx={{ py: 8, bgcolor: 'common.white' }}>
       <Container maxWidth="lg">
-        <Grid container spacing={4}>
-          {stats.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
-              <Paper 
+        <Grid container spacing={4} justifyContent="center">
+          {cards.map((card) => (
+            <Grid item xs={12} sm={6} md={3} key={card.key}>
+              <Paper
                 elevation={0}
-                sx={{ 
-                  p: 4, 
-                  textAlign: 'center', 
-                  borderRadius: 4, 
-                  bgcolor: stat.color,
+                sx={{
+                  p: 4,
+                  textAlign: 'center',
+                  borderRadius: 4,
+                  bgcolor: card.color,
+                  height: '100%',
                   transition: 'transform 0.3s ease',
-                  '&:hover': { transform: 'translateY(-5px)' }
+                  '&:hover': { transform: 'translateY(-5px)' },
                 }}
               >
-                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
-                  {stat.icon}
-                </Box>
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>{card.icon}</Box>
                 <Typography variant="h3" fontWeight="bold" color="text.primary" gutterBottom>
-                  <AnimatedCounter end={stat.value} suffix={stat.suffix} />
+                  {stats[card.key].toLocaleString('ar-EG')}
                 </Typography>
                 <Typography variant="h6" color="text.secondary">
-                  {stat.label}
+                  {card.label}
                 </Typography>
               </Paper>
             </Grid>

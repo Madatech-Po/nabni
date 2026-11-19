@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Container, Typography, Grid, Card, CardContent, Button } from '@mui/material';
-import { GraduationCap, MailOpen, Star, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, MailOpen, BadgeCheck, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
@@ -22,8 +22,8 @@ const FEATURES = [
   },
   {
     id: 3,
-    title: 'ابنِ سمعتك من خلال التقييمات',
-    icon: <Star size={40} />,
+    title: 'ملف موثّق يطمئن أولياء الأمور',
+    icon: <BadgeCheck size={40} />,
     color: '#fff8e1',
     iconColor: '#ffc107'
   },

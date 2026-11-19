@@ -6,6 +6,10 @@ const theme = createTheme({
     mode: 'light',
     primary: {
       main: '#0d9488', // Teal-600
+      // Light tints for chip and button backgrounds (sx: 'primary.50' / 'primary.100', NAB-116).
+      // MUI keeps these extra shades when it builds the palette.
+      50: '#f0fdfa', // Teal-50
+      100: '#ccfbf1', // Teal-100
     },
     secondary: {
       main: '#f59e0b', // Amber-500

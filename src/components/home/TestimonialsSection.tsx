@@ -1,5 +1,9 @@
 'use client';
 
+// NOT RENDERED (NAB-123): every review below is made up, and Nabni has no ratings yet. The home
+// page leaves this section out until the ratings feature exists; then feed it real reviews
+// instead of MOCK_REVIEWS and add it back to src/app/(public)/page.tsx.
+
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { Box, Container, Typography, Card, CardContent, Avatar, Chip, Button } from '@mui/material';
 import { MapPin, Star, BadgeCheck } from 'lucide-react';
