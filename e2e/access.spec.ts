@@ -19,7 +19,8 @@ test.describe('logged out', () => {
 test.describe('parent', () => {
   asRole(test, 'parent');
 
-  for (const area of ['/admin', '/teacher']) {
+  // /admin/messages and /admin/stats: NAB-124 / NAB-125.
+  for (const area of ['/admin', '/teacher', '/admin/messages', '/admin/stats']) {
     test(`cannot open ${area}`, async ({ page }) => {
       await page.goto(area);
       await expect(page).toHaveURL(/\/parent$/);
@@ -46,6 +47,8 @@ test.describe('admin pages', () => {
     { path: '/admin/parents', heading: 'أولياء الأمور' },
     { path: '/admin/requests', heading: 'الطلبات' },
     { path: '/admin/logs', heading: 'سجل الإجراءات' },
+    { path: '/admin/messages', heading: 'الرسائل' }, // NAB-124
+    { path: '/admin/stats', heading: 'أرقام التجربة' }, // NAB-125
   ];
 
   for (const { path, heading } of adminPages) {
@@ -58,6 +61,32 @@ test.describe('admin pages', () => {
       expect(errors).toEqual([]);
     });
   }
+});
+
+test.describe('admin pilot pages', () => {
+  asRole(test, 'admin');
+
+  test('the nav links to the messages and the pilot stats', async ({ page }) => {
+    await page.goto('/admin/educators');
+    const nav = page.getByRole('navigation', { name: 'أقسام لوحة التحكم' });
+    await expect(nav.getByRole('link', { name: 'الرسائل' })).toHaveAttribute('href', '/admin/messages');
+    await expect(nav.getByRole('link', { name: 'أرقام التجربة' })).toHaveAttribute('href', '/admin/stats');
+
+    await nav.getByRole('link', { name: 'أرقام التجربة' }).click();
+    await expect(page.locator('h1')).toHaveText('أرقام التجربة');
+    await expect(nav.getByRole('link', { name: 'أرقام التجربة' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  test('/admin/stats shows the numbers, not the load error', async ({ page }) => {
+    await page.goto('/admin/stats');
+    await expect(page.locator('h1')).toHaveText('أرقام التجربة');
+    await expect(page.getByText('تعذّر تحميل الأرقام')).toHaveCount(0);
+    for (const section of ['الحسابات', 'الطلبات والعروض']) {
+      await expect(page.getByRole('heading', { level: 2, name: section })).toBeVisible();
+    }
+    await expect(page.getByRole('table', { name: 'الطلبات حسب الحالة' })).toBeVisible();
+    await expect(page.getByText(/حسابات الاختبار وبياناتها غير محسوبة/)).toBeVisible();
+  });
 });
 
 // Moderation acts only on a request the e2e parent posted for this test.
