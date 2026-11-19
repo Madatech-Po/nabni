@@ -15,6 +15,11 @@ describe('AdminNav', () => {
     }
   });
 
+  it('links to the contact messages (NAB-124)', () => {
+    render(<AdminNav />);
+    expect(screen.getByRole('link', { name: 'الرسائل' })).toHaveAttribute('href', '/admin/messages');
+  });
+
   it('marks only the current section, including its sub-pages', () => {
     pathname = '/admin/parents/123';
     render(<AdminNav />);

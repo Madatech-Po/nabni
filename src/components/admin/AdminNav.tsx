@@ -8,6 +8,7 @@ export const ADMIN_SECTIONS = [
   { href: '/admin/educators', label: 'توثيق المعلمين' },
   { href: '/admin/parents', label: 'أولياء الأمور' },
   { href: '/admin/requests', label: 'الطلبات' },
+  { href: '/admin/messages', label: 'الرسائل' },
   { href: '/admin/logs', label: 'سجل الإجراءات' },
 ] as const;
 

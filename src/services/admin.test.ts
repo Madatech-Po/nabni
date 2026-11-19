@@ -4,7 +4,9 @@ import { allArgsOf, argsOf, createSupabaseMock, hasCall } from '@/test/supabaseM
 let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
-import { ADMIN_PAGE_SIZE, getAdminLogs, getEducatorsForReview, getParentsForAdmin, getRequestsForAdmin } from './admin';
+import {
+  ADMIN_PAGE_SIZE, getAdminLogs, getContactMessages, getEducatorsForReview, getParentsForAdmin, getRequestsForAdmin,
+} from './admin';
 
 beforeEach(() => {
   mock = createSupabaseMock(() => ({ data: [{ id: 'e1' }] }));
@@ -244,5 +246,36 @@ describe('getAdminLogs', () => {
 
     expect(await getAdminLogs()).toEqual({ items: [], total: 0 });
     expect(mock.queries.map((q) => q.table)).toEqual(['admin_logs']);
+  });
+});
+
+describe('getContactMessages (NAB-124)', () => {
+  beforeEach(() => {
+    mock = createSupabaseMock(() => ({ data: [{ id: 'm1' }], count: 3 }));
+  });
+
+  it('lists contact messages newest first with the exact total', async () => {
+    const result = await getContactMessages();
+
+    const [query] = mock.on('contact_messages');
+    expect(result).toEqual({ items: [{ id: 'm1' }], total: 3 });
+    expect(argsOf(query, 'order')).toEqual(['created_at', { ascending: false }]);
+    const [columns, options] = argsOf(query, 'select') as [string, unknown];
+    for (const column of ['name', 'email', 'phone', 'subject', 'message', 'handled_at', 'created_at']) {
+      expect(columns).toContain(column);
+    }
+    expect(options).toEqual({ count: 'exact' });
+  });
+
+  it('pages through the list', async () => {
+    await getContactMessages({ page: 2 });
+
+    expect(argsOf(mock.on('contact_messages')[0], 'range')).toEqual([ADMIN_PAGE_SIZE, 2 * ADMIN_PAGE_SIZE - 1]);
+  });
+
+  it('throws when the query fails', async () => {
+    mock = createSupabaseMock(() => ({ error: { message: 'permission denied' } }));
+
+    await expect(getContactMessages()).rejects.toMatchObject({ message: 'permission denied' });
   });
 });

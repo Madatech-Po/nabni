@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
-import type { EducatorGender, EducatorVerificationStatus, OfferStatus, RequestStatus } from '@/types/database';
+import type { EducatorGender, EducatorVerificationStatus, OfferStatus, RequestStatus, Tables } from '@/types/database';
 
 export const VERIFICATION_STATUSES: EducatorVerificationStatus[] = ['pending', 'verified', 'rejected', 'suspended'];
 
@@ -264,4 +264,22 @@ export async function getAdminLogs(
       target_label: (item.target_id && labels.get(`${item.target_type}:${item.target_id}`)) || null,
     })),
   };
+}
+
+export type ContactMessageItem = Pick<
+  Tables<'contact_messages'>,
+  'id' | 'name' | 'email' | 'phone' | 'subject' | 'message' | 'handled_at' | 'created_at'
+>;
+
+/** Messages from the contact page, newest first (NAB-124). RLS: active admins only. */
+export async function getContactMessages(filters: { page?: number } = {}): Promise<Paged<ContactMessageItem>> {
+  const supabase = createClient();
+  return fetchPage<ContactMessageItem>(
+    () =>
+      supabase
+        .from('contact_messages')
+        .select('id, name, email, phone, subject, message, handled_at, created_at', { count: 'exact' })
+        .order('created_at', { ascending: false }),
+    filters.page
+  );
 }
