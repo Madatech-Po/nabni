@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NETWORK_ERROR, authErrorMessage, isEmailNotConfirmed, thrownAuthErrorMessage } from './authErrors';
+import { NETWORK_ERROR, authErrorMessage, isAuthNetworkError, isEmailNotConfirmed, thrownAuthErrorMessage } from './authErrors';
 
 describe('authErrorMessage', () => {
   it('translates by error code', () => {
@@ -73,5 +73,19 @@ describe('thrownAuthErrorMessage (NAB-136)', () => {
 
   it('maps other thrown errors like returned ones', () => {
     expect(thrownAuthErrorMessage(new Error('Invalid login credentials'))).toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+  });
+});
+
+describe('isAuthNetworkError (NAB-140)', () => {
+  it('is true when the request itself failed', () => {
+    expect(isAuthNetworkError({ name: 'AuthRetryableFetchError', message: '{}' })).toBe(true);
+    expect(isAuthNetworkError({ message: 'Failed to fetch' })).toBe(true);
+    expect(isAuthNetworkError({ message: 'fetch failed' })).toBe(true);
+  });
+
+  it('is false for an answer about the account or the input', () => {
+    expect(isAuthNetworkError({ code: 'user_not_found', message: 'User not found' })).toBe(false);
+    expect(isAuthNetworkError({ code: 'over_email_send_rate_limit', message: 'rate limit' })).toBe(false);
+    expect(isAuthNetworkError({ message: 'Invalid login credentials' })).toBe(false);
   });
 });

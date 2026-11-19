@@ -82,6 +82,16 @@ describe('Home page (NAB-123)', () => {
     expect(screen.getByRole('heading', { name: 'انضم كمتخصص' })).toBeInTheDocument();
   });
 
+  it('still renders when the stats call throws, hiding only the stats (NAB-140)', async () => {
+    getPublicHomeStats.mockRejectedValue(new TypeError('fetch failed'));
+    render(await Home());
+
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText('متخصص موثّق على نبني')).not.toBeInTheDocument();
+    expect(screen.getByText('متخصص 1')).toBeInTheDocument();
+    expect(screen.getByText('طلب تأسيس حقيقي')).toBeInTheDocument();
+  });
+
   it('links each service card to the directory filtered by its id (NAB-129)', async () => {
     render(await Home());
 

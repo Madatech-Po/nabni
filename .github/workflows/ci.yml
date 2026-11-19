@@ -6,9 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# A newer push cancels an older run of the same branch or PR, except on main: there a run may be
+# deploying, and cancelling it would leave production half-deployed.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   check:

@@ -49,6 +49,18 @@ describe('validateContactForm (NAB-124)', () => {
     expect(validateContactForm({ ...valid, phone: '1'.repeat(31) }).phone).toBe(CONTACT_MESSAGES.phone);
   });
 
+  it('rejects a phone with no digits at all (NAB-140)', () => {
+    for (const phone of ['---', '------', '(  )  ', '+-- -- --']) {
+      expect(validateContactForm({ ...valid, email: '', phone }).phone, phone).toBe(CONTACT_MESSAGES.phone);
+      expect(validateContactForm({ ...valid, phone }).phone, phone).toBe(CONTACT_MESSAGES.phone);
+    }
+  });
+
+  it('still accepts the allowed punctuation around digits', () => {
+    expect(validateContactForm({ ...valid, email: '', phone: '(010) 123-4567' })).toEqual({});
+    expect(validateContactForm({ ...valid, email: '', phone: '+201001234567' })).toEqual({});
+  });
+
   it('limits the optional subject to 150 characters', () => {
     expect(validateContactForm({ ...valid, subject: 'ا'.repeat(MAX_SUBJECT + 1) }).subject).toBe(CONTACT_MESSAGES.subject);
     expect(validateContactForm({ ...valid, subject: '' }).subject).toBeUndefined();

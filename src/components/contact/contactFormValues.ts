@@ -19,7 +19,8 @@ export const MIN_MESSAGE = 10;
 export const MAX_MESSAGE = 2000;
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const PHONE_RE = /^\+?[0-9 ()-]{6,30}$/;
+// At least one digit, so punctuation alone ("---") is not a phone number.
+const PHONE_RE = /^(?=.*[0-9])\+?[0-9 ()-]{6,30}$/;
 
 export type ContactFormErrors = Partial<Record<keyof ContactFormValues, string>>;
 

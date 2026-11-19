@@ -10,6 +10,7 @@ vi.mock('@/utils/supabase/client', () => ({ createClient: () => ({ auth: { getUs
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 
 import ResetPasswordForm, { MISMATCH } from './ResetPasswordForm';
+import { NETWORK_ERROR } from '@/utils/authErrors';
 
 async function fill(password: string, confirm: string) {
   if (password) await userEvent.type(await screen.findByLabelText(/^كلمة المرور الجديدة/), password);
@@ -87,6 +88,18 @@ describe('ResetPasswordForm', () => {
     await fill('secret1', 'secret1');
 
     expect(await screen.findByText(/يجب أن تختلف عن القديمة/)).toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('when the request throws, shows the network message and frees the button (NAB-140)', async () => {
+    updateUser.mockRejectedValue(new TypeError('Failed to fetch'));
+    render(<ResetPasswordForm />);
+
+    await fill('secret1', 'secret1');
+
+    expect(await screen.findByText(NETWORK_ERROR)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'حفظ كلمة المرور' })).toBeEnabled();
+    expect(screen.getByLabelText(/^كلمة المرور الجديدة/)).toBeEnabled();
     expect(router.push).not.toHaveBeenCalled();
   });
 });

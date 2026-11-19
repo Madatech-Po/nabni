@@ -5,15 +5,19 @@ import { Alert, Box, Button, TextField } from '@mui/material';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { ltrInput } from '@/utils/ltrInput';
+import { isAuthNetworkError } from '@/utils/authErrors';
 import { emailError } from '../register/registerFormValues';
 
-// Shown whatever Supabase answers, so the page never reveals which emails have an account.
+// Shown whatever Supabase answers about the account, so the page never reveals which emails have one.
 export const RESET_SENT = 'إذا كان البريد مسجلاً لدينا فستصلك رسالة لإعادة تعيين كلمة المرور';
+// Only when the request never reached Supabase (offline, blocked): says nothing about the account.
+export const RESET_REQUEST_FAILED = 'تعذر إرسال الطلب، تحقق من اتصالك وحاول مرة أخرى';
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [sent, setSent] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
@@ -24,16 +28,21 @@ export default function ForgotPasswordForm() {
     if (found) return;
 
     setLoading(true);
+    setFailed(false);
     try {
       // The recovery link goes through /auth/confirm, which starts a session and opens /reset-password.
-      await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/auth/confirm?type=recovery&next=/reset-password`,
       });
+      // Any other error (user not found etc.) gets the generic answer, like a success (NAB-140).
+      if (resetError && isAuthNetworkError(resetError)) setFailed(true);
+      else setSent(true);
     } catch {
-      // Ignored on purpose: the answer is the same either way.
+      // The request failed outright (offline, blocked): let the user try again.
+      setFailed(true);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    setSent(true);
   };
 
   if (sent) {
@@ -46,6 +55,7 @@ export default function ForgotPasswordForm() {
 
   return (
     <Box component="form" noValidate onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {failed && <Alert severity="error">{RESET_REQUEST_FAILED}</Alert>}
       <TextField
         label="البريد الإلكتروني"
         variant="outlined"

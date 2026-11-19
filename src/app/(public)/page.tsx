@@ -17,7 +17,7 @@ const FEATURED_EDUCATORS_COUNT = 8;
 // instead of breaking the page or showing placeholders.
 export default async function Home() {
   const [stats, educators, requests, categories] = await Promise.all([
-    getPublicHomeStats(),
+    getPublicHomeStats().catch(() => null),
     getEducators().catch(() => []),
     getOpenRequests().catch(() => []),
     getHomeServiceCategories().catch(() => []),

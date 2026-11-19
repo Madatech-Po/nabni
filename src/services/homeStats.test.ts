@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSupabaseMock } from '@/test/supabaseMock';
 
 let mock = createSupabaseMock();
-vi.mock('@/utils/supabase/server', () => ({ createClient: async () => mock.client }));
+let clientFails = false;
+vi.mock('@/utils/supabase/server', () => ({
+  createClient: async () => {
+    if (clientFails) throw new Error('no cookies');
+    return mock.client;
+  },
+}));
 
 import { getPublicHomeStats } from './homeStats';
 
@@ -10,6 +16,7 @@ const stats = { verified_active_educators: 4, open_requests: 2, governorates_cov
 
 beforeEach(() => {
   mock = createSupabaseMock();
+  clientFails = false;
 });
 
 describe('getPublicHomeStats (NAB-123)', () => {
@@ -22,6 +29,16 @@ describe('getPublicHomeStats (NAB-123)', () => {
 
   it('returns null when the call fails, so nothing fake is shown', async () => {
     mock.setRpcResult({ error: { message: 'down' } });
+    expect(await getPublicHomeStats()).toBeNull();
+  });
+
+  it('returns null when the request throws, so the home page still renders (NAB-140)', async () => {
+    vi.spyOn(mock.client, 'rpc').mockRejectedValue(new TypeError('fetch failed'));
+    expect(await getPublicHomeStats()).toBeNull();
+  });
+
+  it('returns null when the client cannot be created (NAB-140)', async () => {
+    clientFails = true;
     expect(await getPublicHomeStats()).toBeNull();
   });
 

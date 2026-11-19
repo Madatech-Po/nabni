@@ -36,6 +36,12 @@ export function authErrorMessage(error: AuthErrorLike): string {
   return match ? match[1] : 'حدث خطأ غير متوقع — حاول مرة أخرى';
 }
 
+// The request itself failed (offline, DNS, server unreachable), as opposed to Supabase answering
+// with an error about the account or the input.
+export function isAuthNetworkError(error: AuthErrorLike): boolean {
+  return error.name === 'AuthRetryableFetchError' || authErrorMessage(error) === NETWORK_ERROR;
+}
+
 // The account exists but its email link was never clicked: the login form offers to resend it.
 export function isEmailNotConfirmed(error: AuthErrorLike): boolean {
   return error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message);

@@ -78,6 +78,22 @@ describe('package.json scripts', () => {
   });
 });
 
+describe('CI concurrency (NAB-140)', () => {
+  const ci = read('.github/workflows/ci.yml');
+  const workflowLevel = ci.slice(0, ci.indexOf('\njobs:'));
+
+  it('cancels superseded runs except on main, where a run may be deploying', () => {
+    expect(workflowLevel).toContain('group: ci-${{ github.ref }}');
+    expect(workflowLevel).toContain("cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}");
+    expect(workflowLevel).not.toContain('cancel-in-progress: true');
+  });
+
+  it('keeps one production deploy at a time, never cancelled halfway', () => {
+    const deploy = ci.slice(ci.indexOf('\n  deploy:'));
+    expect(deploy).toMatch(/concurrency:\s+group: deploy-production\s+cancel-in-progress: false/);
+  });
+});
+
 describe('CI deploy job', () => {
   const ci = read('.github/workflows/ci.yml');
   const deploy = ci.slice(ci.indexOf('\n  deploy:'));

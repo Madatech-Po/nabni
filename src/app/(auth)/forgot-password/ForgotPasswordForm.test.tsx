@@ -6,7 +6,7 @@ const resetPasswordForEmail = vi.fn();
 
 vi.mock('@/utils/supabase/client', () => ({ createClient: () => ({ auth: { resetPasswordForEmail } }) }));
 
-import ForgotPasswordForm, { RESET_SENT } from './ForgotPasswordForm';
+import ForgotPasswordForm, { RESET_REQUEST_FAILED, RESET_SENT } from './ForgotPasswordForm';
 
 async function submit(email: string) {
   if (email) await userEvent.type(screen.getByLabelText(/البريد الإلكتروني/), email);
@@ -66,12 +66,46 @@ describe('ForgotPasswordForm', () => {
     expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
   });
 
-  it('shows the same message when the request throws', async () => {
-    resetPasswordForEmail.mockRejectedValue(new Error('network down'));
+  it('shows the same message for a rate limit, which says nothing about the account', async () => {
+    resetPasswordForEmail.mockResolvedValue({
+      data: null,
+      error: { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded' },
+    });
     render(<ForgotPasswordForm />);
 
     await submit('mona@example.com');
 
     expect(await screen.findByText(new RegExp(RESET_SENT))).toBeInTheDocument();
+  });
+
+  it('when the request throws, says so and keeps the form usable (NAB-140)', async () => {
+    resetPasswordForEmail.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    render(<ForgotPasswordForm />);
+
+    await submit('mona@example.com');
+
+    expect(await screen.findByText(RESET_REQUEST_FAILED)).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(RESET_SENT))).not.toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'أرسل رابط إعادة التعيين' });
+    expect(button).toBeEnabled();
+    expect(screen.getByLabelText(/البريد الإلكتروني/)).toBeEnabled();
+
+    // Trying again once the connection is back sends the link.
+    await userEvent.click(button);
+    expect(await screen.findByText(new RegExp(RESET_SENT))).toBeInTheDocument();
+    expect(resetPasswordForEmail).toHaveBeenCalledTimes(2);
+  });
+
+  it('when Supabase returns a network error, says so instead of "sent" (NAB-140)', async () => {
+    resetPasswordForEmail.mockResolvedValue({
+      data: null,
+      error: { name: 'AuthRetryableFetchError', message: '{}', status: 0 },
+    });
+    render(<ForgotPasswordForm />);
+
+    await submit('mona@example.com');
+
+    expect(await screen.findByText(RESET_REQUEST_FAILED)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'أرسل رابط إعادة التعيين' })).toBeEnabled();
   });
 });

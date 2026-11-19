@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { ltrInput } from '@/utils/ltrInput';
-import { authErrorMessage } from '@/utils/authErrors';
+import { authErrorMessage, thrownAuthErrorMessage } from '@/utils/authErrors';
 import { MIN_PASSWORD, passwordError } from '../register/registerFormValues';
 
 export const MISMATCH = 'كلمتا المرور غير متطابقتين';
@@ -50,14 +50,20 @@ export default function ResetPasswordForm() {
     if (Object.keys(found).length > 0) return;
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setError(authErrorMessage(updateError));
+    // A request that fails outright (offline, blocked) throws: show why and free the button (NAB-140).
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) {
+        setError(authErrorMessage(updateError));
+        setLoading(false);
+        return;
+      }
+      router.push('/dashboard');
+      router.refresh();
+    } catch (thrown) {
+      setError(thrownAuthErrorMessage(thrown));
       setLoading(false);
-      return;
     }
-    router.push('/dashboard');
-    router.refresh();
   };
 
   if (hasSession === null) {

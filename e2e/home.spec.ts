@@ -15,9 +15,6 @@ const MOCK_TEXT = [
   'ابنتي تعاني من تأخر في النطق وتحتاج لجلسات تخاطب متخصصة في المنزل',
   'ابنِ سمعتك من خلال التقييمات',
 ];
-// The old made-up counters (850+, 2400+, 1750+, 4.9) in Western or Arabic digits. Checked in the
-// stats section only: a real request card may well show a budget of 850.
-const MOCK_NUMBERS = /\b(850|2400|2,400|1750|1,750|4\.9)\b|٨٥٠|٢٤٠٠|١٧٥٠|٤٫٩/;
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -39,7 +36,8 @@ test('the stats section shows real counts or is hidden', async ({ page }) => {
   const stats = page.getByRole('region', { name: 'نبني بالأرقام' });
   if ((await stats.count()) === 0) return; // no numbers (or all zero): hidden, as intended
 
-  expect(await stats.innerText()).not.toMatch(MOCK_NUMBERS);
+  // No blacklist of the old mock values: a real count can legitimately be 850. The old
+  // counters are ruled out by their shape below ("850+", "4.9" never match).
   const numbers = stats.locator('h3');
   const count = await numbers.count();
   expect(count).toBeGreaterThan(0);
