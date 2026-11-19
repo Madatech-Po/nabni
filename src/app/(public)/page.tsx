@@ -8,6 +8,7 @@ import EducatorCTASection from '@/components/home/EducatorCTASection';
 import { getPublicHomeStats } from '@/services/homeStats';
 import { getEducators } from '@/services/tutors';
 import { getOpenRequests } from '@/services/requests';
+import { getHomeServiceCategories } from '@/services/homeCategories';
 
 /** How many verified educators the home carousel shows at most. */
 const FEATURED_EDUCATORS_COUNT = 8;
@@ -15,10 +16,11 @@ const FEATURED_EDUCATORS_COUNT = 8;
 // Everything on the home page is real data (NAB-123). If a source fails, its section hides
 // instead of breaking the page or showing placeholders.
 export default async function Home() {
-  const [stats, educators, requests] = await Promise.all([
+  const [stats, educators, requests, categories] = await Promise.all([
     getPublicHomeStats(),
     getEducators().catch(() => []),
     getOpenRequests().catch(() => []),
+    getHomeServiceCategories().catch(() => []),
   ]);
 
   return (
@@ -27,7 +29,7 @@ export default async function Home() {
       <StatsSection stats={stats} />
       <FeaturedEducators educators={educators.slice(0, FEATURED_EDUCATORS_COUNT)} />
       <LatestRequests requests={requests.slice(0, LATEST_REQUESTS_COUNT)} />
-      <CategoriesSection />
+      <CategoriesSection categories={categories} />
       <HowItWorksSection />
       {/* TestimonialsSection stays out until there are real ratings (see the note in that file). */}
       <EducatorCTASection />

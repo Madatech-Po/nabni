@@ -4,9 +4,11 @@ import { render, screen } from '@testing-library/react';
 const getPublicHomeStats = vi.fn();
 const getEducators = vi.fn();
 const getOpenRequests = vi.fn();
+const getHomeServiceCategories = vi.fn();
 vi.mock('@/services/homeStats', () => ({ getPublicHomeStats: () => getPublicHomeStats() }));
 vi.mock('@/services/tutors', () => ({ getEducators: () => getEducators() }));
 vi.mock('@/services/requests', () => ({ getOpenRequests: () => getOpenRequests() }));
+vi.mock('@/services/homeCategories', () => ({ getHomeServiceCategories: () => getHomeServiceCategories() }));
 vi.mock('embla-carousel-react', () => ({ default: () => [vi.fn(), undefined] }));
 vi.mock('embla-carousel-autoplay', () => ({ default: () => ({}) }));
 
@@ -37,6 +39,7 @@ beforeEach(() => {
   });
   getEducators.mockResolvedValue(['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(educator));
   getOpenRequests.mockResolvedValue([request]);
+  getHomeServiceCategories.mockResolvedValue([{ id: 7, name_ar: 'تخاطب', slug: 'speech-therapy' }]);
 });
 
 describe('Home page (NAB-123)', () => {
@@ -68,11 +71,19 @@ describe('Home page (NAB-123)', () => {
     getPublicHomeStats.mockResolvedValue(null);
     getEducators.mockRejectedValue(new Error('down'));
     getOpenRequests.mockRejectedValue(new Error('down'));
+    getHomeServiceCategories.mockRejectedValue(new Error('down'));
     render(await Home());
 
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     expect(screen.queryByText('متخصص موثّق على نبني')).not.toBeInTheDocument();
     expect(screen.queryByText('يبحث أولياء الأمور الآن عن...')).not.toBeInTheDocument();
+    expect(screen.queryByText(/اكتشف الخدمات التعليمية/)).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'انضم كمتخصص' })).toBeInTheDocument();
+  });
+
+  it('links each service card to the directory filtered by its id (NAB-129)', async () => {
+    render(await Home());
+
+    expect(screen.getByRole('link', { name: /تخاطب/ })).toHaveAttribute('href', '/educators?subject=7');
   });
 });

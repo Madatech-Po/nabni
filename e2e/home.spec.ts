@@ -73,3 +73,14 @@ test('latest requests shows real request cards or nothing', async ({ page }) => 
     if (description && !description.startsWith('[E2E]')) expect(feedText, 'a home card that is not in the /requests feed').toContain(description.slice(0, 40));
   }
 });
+
+test('a service card opens the directory filtered to that service (NAB-129)', async ({ page }) => {
+  const card = page.locator('a[href^="/educators?subject="]').first();
+  await expect(card).toBeVisible();
+  const name = (await card.locator('h6').innerText()).trim();
+
+  await card.click();
+
+  await expect(page).toHaveURL(/\/educators\?subject=\d+$/);
+  await expect(page.getByRole('combobox', { name: 'الخدمة' })).toHaveText(name);
+});
