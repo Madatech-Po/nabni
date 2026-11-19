@@ -88,7 +88,9 @@ jobs:
   # checks and UI tests pass. The NEXT_PUBLIC_* values are inlined into the build here.
   # Without the Cloudflare secrets the job is skipped with a warning.
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Deploys are paused until the Gulf launch (NAB-149): set the repository variable
+    # DEPLOY_ENABLED=true (Settings → Secrets and variables → Actions → Variables) to turn them on.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     needs: [check, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 15

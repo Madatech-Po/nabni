@@ -100,6 +100,8 @@ describe('CI deploy job', () => {
 
   it('runs only for pushes to main, after the checks and UI tests', () => {
     expect(deploy).toContain("if: github.event_name == 'push' && github.ref == 'refs/heads/main'");
+    // Paused until the Gulf launch: only runs when the DEPLOY_ENABLED repo variable is "true" (NAB-149).
+    expect(deploy).toContain("&& vars.DEPLOY_ENABLED == 'true'");
     expect(deploy).toContain('needs: [check, e2e]');
   });
 
