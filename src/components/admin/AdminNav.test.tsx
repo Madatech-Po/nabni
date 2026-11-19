@@ -20,6 +20,11 @@ describe('AdminNav', () => {
     expect(screen.getByRole('link', { name: 'الرسائل' })).toHaveAttribute('href', '/admin/messages');
   });
 
+  it('links to the pilot stats (NAB-125)', () => {
+    render(<AdminNav />);
+    expect(screen.getByRole('link', { name: 'أرقام التجربة' })).toHaveAttribute('href', '/admin/stats');
+  });
+
   it('marks only the current section, including its sub-pages', () => {
     pathname = '/admin/parents/123';
     render(<AdminNav />);

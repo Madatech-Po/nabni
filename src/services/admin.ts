@@ -1,5 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
-import type { EducatorGender, EducatorVerificationStatus, OfferStatus, RequestStatus, Tables } from '@/types/database';
+import type {
+  AdminPilotStats, EducatorGender, EducatorVerificationStatus, OfferStatus, RequestStatus, Tables,
+} from '@/types/database';
 
 export const VERIFICATION_STATUSES: EducatorVerificationStatus[] = ['pending', 'verified', 'rejected', 'suspended'];
 
@@ -282,4 +284,11 @@ export async function getContactMessages(filters: { page?: number } = {}): Promi
         .order('created_at', { ascending: false }),
     filters.page
   );
+}
+
+/** The pilot numbers for the stats page (NAB-125); test accounts and [E2E] rows are left out. */
+export async function getPilotStats(): Promise<AdminPilotStats> {
+  const { data, error } = await createClient().rpc('admin_pilot_stats');
+  if (error) throw error;
+  return data;
 }

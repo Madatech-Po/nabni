@@ -5,7 +5,8 @@ let mock = createSupabaseMock();
 vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
 
 import {
-  ADMIN_PAGE_SIZE, getAdminLogs, getContactMessages, getEducatorsForReview, getParentsForAdmin, getRequestsForAdmin,
+  ADMIN_PAGE_SIZE, getAdminLogs, getContactMessages, getEducatorsForReview, getParentsForAdmin, getPilotStats,
+  getRequestsForAdmin,
 } from './admin';
 
 beforeEach(() => {
@@ -277,5 +278,20 @@ describe('getContactMessages (NAB-124)', () => {
     mock = createSupabaseMock(() => ({ error: { message: 'permission denied' } }));
 
     await expect(getContactMessages()).rejects.toMatchObject({ message: 'permission denied' });
+  });
+});
+
+describe('getPilotStats (NAB-125)', () => {
+  it('reads the numbers from admin_pilot_stats()', async () => {
+    mock.setRpcResult({ data: { generated_at: '2026-11-12T10:00:00Z' } });
+
+    expect(await getPilotStats()).toEqual({ generated_at: '2026-11-12T10:00:00Z' });
+    expect(mock.rpcCalls).toEqual([{ fn: 'admin_pilot_stats', args: undefined }]);
+  });
+
+  it('throws when the call fails', async () => {
+    mock.setRpcResult({ error: { code: '42501', message: 'insufficient_privilege' } });
+
+    await expect(getPilotStats()).rejects.toMatchObject({ code: '42501' });
   });
 });
