@@ -2,9 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { account, authFile } from './support/accounts';
 import { E2E_MARK, clientAs, e2eText } from './support/data';
 
-// The contact page (NAB-124) and its admin inbox. Every sent message notifies EVERY active admin,
-// real ones included, so the suite sends exactly one message per run and the e2e admin marks it
-// handled. Contact messages can't be deleted; "handled" is their clean-up state.
+// The contact page (NAB-124) and its admin inbox. The suite sends exactly one message per run, from
+// an @example.invalid address: messages from that test domain are stored but notify no admin, real
+// or e2e (NAB-139). The e2e admin marks it handled; contact messages can't be deleted, so "handled"
+// is their clean-up state.
 
 const submitButton = (page: Page) => page.getByRole('button', { name: 'إرسال', exact: true });
 
