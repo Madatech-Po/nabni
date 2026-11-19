@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event';
 
 const signUp = vi.fn();
 const router = { push: vi.fn(), refresh: vi.fn() };
+let params = new URLSearchParams();
 
 vi.mock('@/utils/supabase/client', () => ({ createClient: () => ({ auth: { signUp } }) }));
 vi.mock('next/navigation', () => ({
   useRouter: () => router,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => params,
 }));
 
 import RegisterForm from './RegisterForm';
@@ -22,6 +23,7 @@ async function fill(email: string, password: string) {
 }
 
 beforeEach(() => {
+  params = new URLSearchParams();
   signUp.mockReset();
   router.push.mockReset();
   router.refresh.mockReset();
@@ -72,6 +74,9 @@ describe('RegisterForm', () => {
     await fill(' mona@example.com ', 'secret1');
 
     expect(await screen.findByText(/أرسلنا رسالة تأكيد إلى mona@example.com/)).toBeInTheDocument();
+    // The link signs them in directly (NAB-122), so there is no "then log in" step any more.
+    expect(screen.getByText(/افتح الرسالة واضغط على الرابط لتفعيل حسابك والدخول مباشرة/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'سجّل الدخول' })).not.toBeInTheDocument();
     expect(signUp).toHaveBeenCalledWith(expect.objectContaining({ email: 'mona@example.com', password: 'secret1' }));
     expect(router.push).not.toHaveBeenCalled();
   });
@@ -87,6 +92,27 @@ describe('RegisterForm', () => {
   });
 
   it('goes to the dashboard when sign-up logs the user in', async () => {
+    signUp.mockResolvedValue({ data: { user: { id: 'u1' }, session: { access_token: 't' } }, error: null });
+    render(<RegisterForm />);
+
+    await fill('mona@example.com', 'secret1');
+
+    await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith('/dashboard'));
+  });
+
+  it('follows a safe internal redirectTo after sign-up', async () => {
+    params = new URLSearchParams('redirectTo=/parent/requests');
+    signUp.mockResolvedValue({ data: { user: { id: 'u1' }, session: { access_token: 't' } }, error: null });
+    render(<RegisterForm />);
+
+    await fill('mona@example.com', 'secret1');
+
+    await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith('/parent/requests'));
+  });
+
+  it('never leaves the site for an unsafe redirectTo (NAB-126)', async () => {
+    params = new URLSearchParams();
+    params.set('redirectTo', '//evil.com');
     signUp.mockResolvedValue({ data: { user: { id: 'u1' }, session: { access_token: 't' } }, error: null });
     render(<RegisterForm />);
 

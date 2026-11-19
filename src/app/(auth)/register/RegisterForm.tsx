@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { Box, Button, TextField, Alert, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { authErrorMessage } from '@/utils/authErrors';
+import { safeNextPath } from '@/utils/safeRedirect';
 import {
   MIN_PASSWORD,
   validateRegisterForm,
@@ -26,7 +26,8 @@ export default function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+  // Only follow internal paths: ?redirectTo=//evil.com must not send the user off the site.
+  const redirectTo = safeNextPath(searchParams.get('redirectTo'), '/dashboard');
 
   const setField = (field: keyof RegisterFormValues) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setValues((current) => ({ ...current, [field]: e.target.value }));
@@ -71,8 +72,8 @@ export default function RegisterForm() {
   if (confirmEmailSent) {
     return (
       <Alert severity="success">
-        تم إنشاء حسابك. أرسلنا رسالة تأكيد إلى {values.email.trim()} — افتحها واضغط على الرابط، ثم{' '}
-        <Link href="/login">سجّل الدخول</Link>.
+        تم إنشاء حسابك. أرسلنا رسالة تأكيد إلى {values.email.trim()} — افتح الرسالة واضغط على الرابط لتفعيل حسابك
+        والدخول مباشرة.
       </Alert>
     );
   }

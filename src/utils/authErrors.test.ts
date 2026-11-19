@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authErrorMessage } from './authErrors';
+import { NETWORK_ERROR, authErrorMessage, isEmailNotConfirmed } from './authErrors';
 
 describe('authErrorMessage', () => {
   it('translates by error code', () => {
@@ -25,5 +25,38 @@ describe('authErrorMessage', () => {
   it('never shows raw English for an unknown error', () => {
     expect(authErrorMessage({ code: 'something_new', message: 'Something new went wrong' }))
       .toBe('حدث خطأ غير متوقع — حاول مرة أخرى');
+  });
+
+  describe('login errors (NAB-126)', () => {
+    it('explains wrong email or password', () => {
+      expect(authErrorMessage({ code: 'invalid_credentials', message: 'Invalid login credentials' }))
+        .toBe('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+    });
+
+    it('tells an unconfirmed user to open the confirmation email', () => {
+      const text = 'لم تفعّل حسابك بعد — افتح رسالة التأكيد التي أرسلناها إلى بريدك واضغط على الرابط';
+      expect(authErrorMessage({ code: 'email_not_confirmed', message: 'Email not confirmed' })).toBe(text);
+      expect(authErrorMessage({ message: 'Email not confirmed' })).toBe(text);
+    });
+
+    it('asks to wait after too many attempts', () => {
+      expect(authErrorMessage({ code: 'over_request_rate_limit', message: 'Request rate limit reached' }))
+        .toBe('محاولات كثيرة — انتظر قليلاً ثم حاول مرة أخرى');
+      expect(authErrorMessage({ message: 'Request rate limit reached' })).toContain('انتظر قليلاً');
+    });
+
+    it('explains a network failure', () => {
+      expect(authErrorMessage({ name: 'AuthRetryableFetchError', message: '{}' })).toBe(NETWORK_ERROR);
+      expect(authErrorMessage({ message: 'Failed to fetch' })).toBe(NETWORK_ERROR);
+      expect(authErrorMessage({ message: 'TypeError: fetch failed' })).toBe(NETWORK_ERROR);
+    });
+  });
+});
+
+describe('isEmailNotConfirmed', () => {
+  it('spots the unconfirmed-email error by code or message', () => {
+    expect(isEmailNotConfirmed({ code: 'email_not_confirmed', message: 'x' })).toBe(true);
+    expect(isEmailNotConfirmed({ message: 'Email not confirmed' })).toBe(true);
+    expect(isEmailNotConfirmed({ code: 'invalid_credentials', message: 'Invalid login credentials' })).toBe(false);
   });
 });

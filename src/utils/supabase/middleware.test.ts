@@ -58,4 +58,32 @@ describe('updateSession', () => {
     expect(await visit('/reset-password')).toBeNull();
     expect(await visit('/auth/confirm?token_hash=abc&type=recovery')).toBeNull();
   });
+
+  it('only writes internal paths into redirectTo (NAB-126)', async () => {
+    signedIn(false);
+
+    const location = await visit('//evil.com/proposal');
+
+    expect(location).not.toBeNull();
+    const url = new URL(location!);
+    expect(url.origin).toBe('https://nabni.test');
+    expect(url.pathname).toBe('/login');
+    expect(url.searchParams.has('redirectTo')).toBe(false);
+  });
+
+  it('sends a signed-in visitor of /login to a safe redirectTo', async () => {
+    signedIn(true);
+
+    expect(await visit('/login?redirectTo=%2Fparent%2Frequests')).toBe('https://nabni.test/parent/requests');
+    expect(await visit('/login')).toBe('https://nabni.test/dashboard');
+  });
+
+  it('keeps a signed-in visitor on the site for an unsafe redirectTo (NAB-126)', async () => {
+    signedIn(true);
+
+    for (const unsafe of ['//evil.com', 'https://evil.com', '/\\evil.com', '/\t/evil.com', '/\n/evil.com']) {
+      const location = await visit(`/login?redirectTo=${encodeURIComponent(unsafe)}`);
+      expect(location, unsafe).toBe('https://nabni.test/dashboard');
+    }
+  });
 });
