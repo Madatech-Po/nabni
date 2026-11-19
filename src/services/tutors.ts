@@ -11,7 +11,7 @@ export interface EducatorFilters {
 }
 
 export async function getEducators(filters: EducatorFilters = {}): Promise<EducatorDirectoryItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase
     .from('educator_directory')

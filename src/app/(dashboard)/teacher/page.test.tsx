@@ -8,7 +8,7 @@ const redirect = vi.fn((url: string) => {
 });
 
 vi.mock('@/utils/supabase/server', () => ({
-  createClient: () => ({ ...mock.client, auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) } }),
+  createClient: async () => ({ ...mock.client, auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) } }),
 }));
 vi.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }));
 

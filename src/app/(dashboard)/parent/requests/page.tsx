@@ -7,7 +7,7 @@ import RequestCard from '@/components/requests/RequestCard';
 import MyRequestActions from '@/components/requests/MyRequestActions';
 
 export default async function MyRequestsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/parent/requests');
 

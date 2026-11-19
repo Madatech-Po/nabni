@@ -4,7 +4,7 @@ import ContactForm from '@/components/contact/ContactForm';
 
 // "تواصل معنا" (NAB-124). Visitors can write too; a signed-in user gets their name and email filled in.
 export default async function ContactPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   let defaults: { name?: string; email?: string } | undefined;

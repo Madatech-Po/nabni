@@ -8,7 +8,7 @@ import { getHeaderNotifications } from '@/components/notifications/headerNotific
 // The middleware only guarantees a signed-in user; the role check lives here so every /admin
 // page is covered. The database enforces the same rule through is_admin() (NAB-37).
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect('/login?redirectTo=/admin');

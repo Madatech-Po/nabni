@@ -25,7 +25,7 @@ export interface RequestFilters {
 }
 
 export async function getOpenRequests(filters: RequestFilters = {}): Promise<RequestFeedItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let query = supabase
     .from('requests')
@@ -70,7 +70,7 @@ const MY_REQUEST_COLUMNS = `id, student_age, description, preferred_educator_gen
   offers(status)`;
 
 export async function getMyRequests(parentId: string): Promise<MyRequestItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('requests')
     .select(MY_REQUEST_COLUMNS)
@@ -85,7 +85,7 @@ export async function getMyRequests(parentId: string): Promise<MyRequestItem[]> 
 export async function getMyRequest(parentId: string, requestId: string): Promise<MyRequestItem | null> {
   if (!UUID_RE.test(requestId)) return null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('requests')
     .select(MY_REQUEST_COLUMNS)
@@ -105,7 +105,7 @@ export async function getMyRequest(parentId: string, requestId: string): Promise
 export async function getMyRequestForEdit(parentId: string, requestId: string): Promise<RequestInput | null> {
   if (!UUID_RE.test(requestId)) return null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('requests')
     .select(
@@ -126,7 +126,7 @@ export async function getMyRequestForEdit(parentId: string, requestId: string): 
 export async function getOpenRequest(requestId: string): Promise<RequestFeedItem | null> {
   if (!UUID_RE.test(requestId)) return null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('requests')
     .select(

@@ -5,11 +5,12 @@ import { getEducators } from '@/services/tutors';
 import TutorFilters from '@/components/educators/TutorFilters';
 import TutorCard from '@/components/educators/TutorCard';
 
-export default async function EducatorsPage({
-  searchParams,
-}: {
-  searchParams: { subject?: string; governorate?: string };
-}) {
+export default async function EducatorsPage(
+  props: {
+    searchParams: Promise<{ subject?: string; governorate?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const tutors = await getEducators({
     serviceCategoryId: parsePositiveIntId(searchParams.subject),
     governorateId: parsePositiveIntId(searchParams.governorate),

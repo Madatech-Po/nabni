@@ -9,11 +9,12 @@ import AdminPagination from '@/components/admin/AdminPagination';
 import { ACTION_LABELS, describeChange, targetHref } from '@/components/admin/adminLogFormat';
 import { formatDateTime } from '@/utils/formatDate';
 
-export default async function AdminLogsPage({
-  searchParams,
-}: {
-  searchParams: { action?: string; page?: string };
-}) {
+export default async function AdminLogsPage(
+  props: {
+    searchParams: Promise<{ action?: string; page?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const action = ADMIN_LOG_ACTIONS.includes(searchParams.action as AdminLogAction)
     ? (searchParams.action as AdminLogAction)
     : undefined;

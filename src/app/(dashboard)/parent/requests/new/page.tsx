@@ -5,7 +5,7 @@ import { getRequestFormLookups } from '@/services/lookups';
 import RequestForm from '@/components/requests/RequestForm';
 
 export default async function NewRequestPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/parent/requests/new');
 

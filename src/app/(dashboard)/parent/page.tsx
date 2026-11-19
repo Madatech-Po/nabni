@@ -10,7 +10,7 @@ import { countByStatus } from '@/components/requests/countByStatus';
 const LATEST = 2;
 
 export default async function ParentDashboard() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 

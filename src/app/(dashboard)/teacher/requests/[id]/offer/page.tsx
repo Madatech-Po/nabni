@@ -9,8 +9,9 @@ import RequestCard from '@/components/requests/RequestCard';
 import OfferForm from '@/components/offers/OfferForm';
 import CannotOfferNotice from '@/components/offers/CannotOfferNotice';
 
-export default async function SendOfferPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+export default async function SendOfferPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/login?redirectTo=/teacher/requests/${params.id}/offer`);
 

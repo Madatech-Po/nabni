@@ -34,7 +34,7 @@ function sanitizeSearch(q: string): string {
 }
 
 export async function getEducatorsForReview(filters: AdminEducatorFilters = {}): Promise<AdminEducatorItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Admin-only rows are enforced by RLS ("Admins can view all educators").
   let query = supabase
@@ -115,7 +115,7 @@ export interface AdminParentFilters {
 }
 
 export async function getParentsForAdmin(filters: AdminParentFilters = {}): Promise<Paged<AdminParentItem>> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const q = filters.q ? sanitizeSearch(filters.q) : '';
 
   // Every profile is readable by admins ("Admins can view all profiles", NAB-51).
@@ -172,7 +172,7 @@ export interface AdminRequestFilters {
 }
 
 export async function getRequestsForAdmin(filters: AdminRequestFilters = {}): Promise<Paged<AdminRequestItem>> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const q = filters.q ? sanitizeSearch(filters.q) : '';
 
   // Admins read every request, removed ones included ("Admins can view all requests", NAB-51).
@@ -231,7 +231,7 @@ const TARGET_LABELS: Record<string, { table: 'educators' | 'profiles' | 'request
 export async function getAdminLogs(
   filters: { action?: AdminLogAction; page?: number } = {}
 ): Promise<Paged<AdminLogItem>> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const page = await fetchPage<Omit<AdminLogItem, 'target_label'>>(() => {
     let query = supabase
@@ -275,7 +275,7 @@ export type ContactMessageItem = Pick<
 
 /** Messages from the contact page, newest first (NAB-124). RLS: active admins only. */
 export async function getContactMessages(filters: { page?: number } = {}): Promise<Paged<ContactMessageItem>> {
-  const supabase = createClient();
+  const supabase = await createClient();
   return fetchPage<ContactMessageItem>(
     () =>
       supabase
@@ -288,7 +288,7 @@ export async function getContactMessages(filters: { page?: number } = {}): Promi
 
 /** The pilot numbers for the stats page (NAB-125); test accounts and [E2E] rows are left out. */
 export async function getPilotStats(): Promise<AdminPilotStats> {
-  const { data, error } = await createClient().rpc('admin_pilot_stats');
+  const { data, error } = await (await createClient()).rpc('admin_pilot_stats');
   if (error) throw error;
   return data;
 }

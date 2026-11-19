@@ -9,7 +9,7 @@ import CannotOfferNotice from '@/components/offers/CannotOfferNotice';
 import { STATUS_COLORS, STATUS_LABELS } from '@/components/admin/verificationStatus';
 
 export default async function TeacherDashboard() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 

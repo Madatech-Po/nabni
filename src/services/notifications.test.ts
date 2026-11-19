@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { argsOf, createSupabaseMock, hasCall } from '@/test/supabaseMock';
 
 let mock = createSupabaseMock();
-vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
+vi.mock('@/utils/supabase/server', () => ({ createClient: async () => mock.client }));
 
 import { getMyNotifications, getMyUnreadCount, NOTIFICATIONS_DEFAULT_LIMIT } from './notifications';
 

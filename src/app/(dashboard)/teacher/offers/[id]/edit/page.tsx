@@ -6,8 +6,9 @@ import { getPricingUnits } from '@/services/lookups';
 import OfferForm from '@/components/offers/OfferForm';
 import { toOfferFormValues } from '@/components/offers/offerFormValues';
 
-export default async function EditOfferPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+export default async function EditOfferPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/login?redirectTo=/teacher/offers/${params.id}/edit`);
 

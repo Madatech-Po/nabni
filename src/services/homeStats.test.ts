@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSupabaseMock } from '@/test/supabaseMock';
 
 let mock = createSupabaseMock();
-vi.mock('@/utils/supabase/server', () => ({ createClient: () => mock.client }));
+vi.mock('@/utils/supabase/server', () => ({ createClient: async () => mock.client }));
 
 import { getPublicHomeStats } from './homeStats';
 

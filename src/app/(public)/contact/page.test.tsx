@@ -6,7 +6,7 @@ let mock = createSupabaseMock();
 let user: { id: string; email?: string } | null = null;
 
 vi.mock('@/utils/supabase/server', () => ({
-  createClient: () => ({ ...mock.client, auth: { getUser: async () => ({ data: { user } }) } }),
+  createClient: async () => ({ ...mock.client, auth: { getUser: async () => ({ data: { user } }) } }),
 }));
 vi.mock('@/services/contact', () => ({ submitContactMessage: vi.fn() }));
 

@@ -7,7 +7,8 @@ import { formatDateTime } from '@/utils/formatDate';
 
 // Messages from the "تواصل معنا" page (NAB-124), newest first. Unhandled ones stand out until an
 // admin marks them handled. The admin layout already checks the role.
-export default async function AdminMessagesPage({ searchParams }: { searchParams: { page?: string } }) {
+export default async function AdminMessagesPage(props: { searchParams: Promise<{ page?: string }> }) {
+  const searchParams = await props.searchParams;
   const { items, total } = await getContactMessages({ page: Number(searchParams.page) || 1 });
 
   return (

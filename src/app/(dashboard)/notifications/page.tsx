@@ -6,7 +6,7 @@ import NotificationList from '@/components/notifications/NotificationList';
 
 // Every signed-in user's notifications (NAB-107); admins have theirs under /admin/notifications.
 export default async function NotificationsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/notifications');
 

@@ -26,7 +26,7 @@ export async function getMyNotifications({
   limit = NOTIFICATIONS_DEFAULT_LIMIT,
   unreadOnly = false,
 }: MyNotificationsOptions = {}): Promise<NotificationItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   let query = supabase
     .from('notifications')
     .select('id, type, title, body, link, data, read_at, created_at')
@@ -50,7 +50,7 @@ export async function getMyNotifications({
 
 /** How many of the user's notifications are unread, without fetching them. */
 export async function getMyUnreadCount(): Promise<number> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { count, error } = await supabase
     .from('notifications')
     .select('id', { count: 'exact', head: true })

@@ -6,8 +6,9 @@ import { getRequestFormLookups } from '@/services/lookups';
 import RequestForm from '@/components/requests/RequestForm';
 import { toFormValues } from '@/components/requests/requestFormValues';
 
-export default async function EditRequestPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+export default async function EditRequestPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/login?redirectTo=/parent/requests/${params.id}/edit`);
 

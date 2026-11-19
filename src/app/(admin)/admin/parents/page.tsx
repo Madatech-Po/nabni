@@ -15,11 +15,12 @@ const STATUS_OPTIONS = [
   { value: 'suspended', label: 'موقوف' },
 ];
 
-export default async function AdminParentsPage({
-  searchParams,
-}: {
-  searchParams: { status?: string; q?: string; page?: string };
-}) {
+export default async function AdminParentsPage(
+  props: {
+    searchParams: Promise<{ status?: string; q?: string; page?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const active = searchParams.status === 'active' ? true : searchParams.status === 'suspended' ? false : undefined;
   const { items, total } = await getParentsForAdmin({
     active,

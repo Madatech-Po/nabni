@@ -6,7 +6,7 @@ let mock = createSupabaseMock();
 let user: { id: string } | null = null;
 
 vi.mock('@/utils/supabase/server', () => ({
-  createClient: () => ({ ...mock.client, auth: { getUser: async () => ({ data: { user } }) } }),
+  createClient: async () => ({ ...mock.client, auth: { getUser: async () => ({ data: { user } }) } }),
 }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -39,7 +39,7 @@ beforeEach(() => {
 
 describe('RequestsPage', () => {
   it('shows visitors the feed and the parent call to action, without offer buttons', async () => {
-    render(await RequestsPage({ searchParams: {} }));
+    render(await RequestsPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByText('طلب تأسيس')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ولي أمر؟ انشر طلبك' })).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe('RequestsPage', () => {
       educators: () => ({ data: { id: 'e1', verification_status: 'verified', is_active: true } }),
       offers: () => ({ data: [{ request_id: 'r1' }] }),
     });
-    render(await RequestsPage({ searchParams: {} }));
+    render(await RequestsPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByRole('link', { name: 'تم إرسال عرضك' })).toHaveAttribute('href', '/teacher/offers');
     expect(screen.queryByText('ولي أمر؟ انشر طلبك')).not.toBeInTheDocument();
@@ -65,7 +65,7 @@ describe('RequestsPage', () => {
       profiles: () => ({ data: { role: 'educator' } }),
       educators: () => ({ error: { message: 'timeout' } }),
     });
-    render(await RequestsPage({ searchParams: {} }));
+    render(await RequestsPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByText('طلب تأسيس')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'قدّم عرضك' })).toHaveAttribute('href', '/teacher/requests/r1/offer');

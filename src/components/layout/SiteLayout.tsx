@@ -7,7 +7,7 @@ import GlobalFooter from './GlobalFooter';
 // The site's header and footer around public pages and the parent/educator dashboards, so a
 // signed-in user can always get home, back to their dashboard, or sign out (NAB-93).
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   // Visitors have no notifications, so nothing is read for them (NAB-107).
   const notifications = user ? await getHeaderNotifications() : undefined;

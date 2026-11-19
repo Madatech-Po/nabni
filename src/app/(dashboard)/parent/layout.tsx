@@ -4,7 +4,7 @@ import SuspendedNotice from '@/components/account/SuspendedNotice';
 
 // Covers every /parent page: parents only, and a suspended parent sees a notice instead (NAB-56).
 export default async function ParentLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect('/login?redirectTo=/parent');

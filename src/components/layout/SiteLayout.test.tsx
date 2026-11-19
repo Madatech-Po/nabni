@@ -8,7 +8,7 @@ const getHeaderNotifications = vi.fn(async () => ({
 }));
 
 vi.mock('@/utils/supabase/server', () => ({
-  createClient: () => ({ auth: { getUser: async () => ({ data: { user } }) } }),
+  createClient: async () => ({ auth: { getUser: async () => ({ data: { user } }) } }),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock('@/utils/supabase/client', () => ({ createClient: () => ({ auth: { signOut: vi.fn() } }) }));

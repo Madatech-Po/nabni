@@ -8,7 +8,7 @@ const redirect = vi.fn((url: string) => {
 });
 
 vi.mock('@/utils/supabase/server', () => ({
-  createClient: () => ({ auth: { getUser: async () => ({ data: { user } }) } }),
+  createClient: async () => ({ auth: { getUser: async () => ({ data: { user } }) } }),
 }));
 vi.mock('@/services/notifications', () => ({
   NOTIFICATIONS_DEFAULT_LIMIT: 50,

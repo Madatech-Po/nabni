@@ -10,7 +10,7 @@ import { MY_OFFER_STATUS_LABELS, OFFER_STATUS_COLORS } from '@/components/offers
 import { formatDate } from '@/utils/formatDate';
 
 export default async function MyOffersPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/teacher/offers');
 

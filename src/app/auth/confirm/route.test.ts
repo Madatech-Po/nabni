@@ -6,7 +6,7 @@ const verifyOtp = vi.fn();
 const exchangeCodeForSession = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
-  createClient: () => ({ auth: { verifyOtp, exchangeCodeForSession } }),
+  createClient: async () => ({ auth: { verifyOtp, exchangeCodeForSession } }),
 }));
 
 import { GET } from './route';

@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('AdminMessagesPage (NAB-124)', () => {
   it('lists messages with sender, contact, subject, text and date', async () => {
     getContactMessages.mockResolvedValue({ items: [unhandled, handled], total: 2 });
-    render(await AdminMessagesPage({ searchParams: {} }));
+    render(await AdminMessagesPage({ searchParams: Promise.resolve({}) }));
 
     expect(getContactMessages).toHaveBeenCalledWith({ page: 1 });
     expect(screen.getByRole('heading', { name: 'الرسائل' })).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe('AdminMessagesPage (NAB-124)', () => {
 
   it('keeps the order the service gives (newest first)', async () => {
     getContactMessages.mockResolvedValue({ items: [unhandled, handled], total: 2 });
-    render(await AdminMessagesPage({ searchParams: {} }));
+    render(await AdminMessagesPage({ searchParams: Promise.resolve({}) }));
 
     const names = screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'));
     expect(names).toEqual(['رسالة من منى', 'رسالة من أحمد']);
@@ -60,14 +60,14 @@ describe('AdminMessagesPage (NAB-124)', () => {
 
   it('passes the page number on', async () => {
     getContactMessages.mockResolvedValue({ items: [], total: 0 });
-    render(await AdminMessagesPage({ searchParams: { page: '3' } }));
+    render(await AdminMessagesPage({ searchParams: Promise.resolve({ page: '3' }) }));
 
     expect(getContactMessages).toHaveBeenCalledWith({ page: 3 });
   });
 
   it('says so when there are no messages', async () => {
     getContactMessages.mockResolvedValue({ items: [], total: 0 });
-    render(await AdminMessagesPage({ searchParams: {} }));
+    render(await AdminMessagesPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByText('لا توجد رسائل.')).toBeInTheDocument();
   });

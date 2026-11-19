@@ -6,7 +6,7 @@ import CannotOfferNotice from '@/components/offers/CannotOfferNotice';
 import { getEducatorOfferingState } from '@/services/offers';
 
 export default async function TeacherProfilePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

@@ -6,11 +6,12 @@ import EducatorReviewCard from '@/components/admin/EducatorReviewCard';
 import EducatorReviewActions from '@/components/admin/EducatorReviewActions';
 import type { EducatorVerificationStatus } from '@/types/database';
 
-export default async function AdminEducatorsPage({
-  searchParams,
-}: {
-  searchParams: { status?: string; q?: string };
-}) {
+export default async function AdminEducatorsPage(
+  props: {
+    searchParams: Promise<{ status?: string; q?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   // Default to the pending queue; "all" (or anything unknown) drops the status filter.
   const statusParam = searchParams.status ?? 'pending';
   const status = VERIFICATION_STATUSES.includes(statusParam as EducatorVerificationStatus)

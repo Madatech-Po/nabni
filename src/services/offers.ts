@@ -15,7 +15,7 @@ export interface EducatorOfferingState {
 
 /** The signed-in educator's row and whether they may send offers; null without a profile yet. */
 export async function getEducatorOfferingState(userId: string): Promise<EducatorOfferingState | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('educators')
     .select('id, verification_status, verification_reason, is_active')
@@ -34,7 +34,7 @@ export async function getEducatorOfferingState(userId: string): Promise<Educator
 
 /** Requests the educator already has a pending or accepted offer on. */
 export async function getRequestIdsWithMyActiveOffer(educatorId: string): Promise<Set<string>> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('offers')
     .select('request_id')
@@ -74,7 +74,7 @@ const MY_OFFER_COLUMNS = `id, price, schedule, start_date, notes, status, create
 
 /** The educator's offers, newest first, with the request each belongs to. */
 export async function getMyOffers(educatorId: string): Promise<MyOfferItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   // Educators can read requests they offered on even after they close (NAB-80).
   const { data, error } = await supabase
     .from('offers')
@@ -90,7 +90,7 @@ export async function getMyOffers(educatorId: string): Promise<MyOfferItem[]> {
 export async function getMyPendingOffer(educatorId: string, offerId: string): Promise<MyOfferItem | null> {
   if (!UUID_RE.test(offerId)) return null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('offers')
     .select(MY_OFFER_COLUMNS)
@@ -130,7 +130,7 @@ export interface OfferForParent {
  * details come from the public educator_directory view.
  */
 export async function getOffersOnMyRequest(requestId: string): Promise<OfferForParent[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: offers, error } = await supabase
     .from('offers')
     .select('id, price, schedule, start_date, notes, status, created_at, educator_id, pricing_unit:pricing_units(name_ar)')
@@ -163,7 +163,7 @@ export interface OfferContact {
  * for the educator. The database returns nothing for anyone else or any other status.
  */
 export async function getOfferContact(offerId: string): Promise<OfferContact | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc('get_offer_contact', { p_offer_id: offerId });
   if (error) throw error;
   return (data as OfferContact[] | null)?.[0] ?? null;
@@ -174,7 +174,7 @@ export async function getOfferContact(offerId: string): Promise<OfferContact | n
  * or teach). Empty when the educator hasn't picked services yet.
  */
 export async function getMatchingOpenRequests(educatorId: string, limit = 3): Promise<RequestFeedItem[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const [subjects, locations, home] = await Promise.all([
     supabase.from('educator_subjects').select('subject_id').eq('educator_id', educatorId),
     supabase.from('educator_locations').select('governorate_id').eq('educator_id', educatorId),

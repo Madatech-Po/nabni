@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const next = safeNextPath(searchParams.get('next'), type === 'recovery' ? '/reset-password' : '/dashboard');
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let ok = false;
 
   if (tokenHash && isOtpType(type)) {

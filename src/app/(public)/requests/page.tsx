@@ -11,7 +11,7 @@ import { getEducatorOfferingState, getRequestIdsWithMyActiveOffer } from '@/serv
 
 // Signed-in educators get an offer button on each card; everyone else sees the plain feed.
 async function getViewerOffers(): Promise<{ isEducator: boolean; offered: Set<string> }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { isEducator: false, offered: new Set() };
 
@@ -31,11 +31,12 @@ async function getViewerOffers(): Promise<{ isEducator: boolean; offered: Set<st
   }
 }
 
-export default async function RequestsPage({
-  searchParams,
-}: {
-  searchParams: { subject?: string; governorate?: string };
-}) {
+export default async function RequestsPage(
+  props: {
+    searchParams: Promise<{ subject?: string; governorate?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const [requests, viewer] = await Promise.all([
     getOpenRequests({
       serviceCategoryId: parsePositiveIntId(searchParams.subject),

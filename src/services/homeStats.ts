@@ -7,7 +7,7 @@ import type { PublicHomeStats } from '@/types/database';
  * numbers.
  */
 export async function getPublicHomeStats(): Promise<PublicHomeStats | null> {
-  const { data, error } = await createClient().rpc('public_home_stats');
+  const { data, error } = await (await createClient()).rpc('public_home_stats');
   if (error || !data) return null;
   return data;
 }

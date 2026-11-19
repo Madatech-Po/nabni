@@ -13,11 +13,12 @@ import { formatDate } from '@/utils/formatDate';
 
 const ALL = { value: 'all', label: 'الكل' };
 
-export default async function AdminRequestsPage({
-  searchParams,
-}: {
-  searchParams: { status?: string; service?: string; governorate?: string; parent?: string; q?: string; page?: string };
-}) {
+export default async function AdminRequestsPage(
+  props: {
+    searchParams: Promise<{ status?: string; service?: string; governorate?: string; parent?: string; q?: string; page?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const status = REQUEST_STATUSES.includes(searchParams.status as RequestStatus)
     ? (searchParams.status as RequestStatus)
     : undefined;

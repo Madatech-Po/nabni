@@ -14,8 +14,9 @@ import type { OfferStatus } from '@/types/database';
 // Accepted first, then the ones waiting for an answer, then the rest.
 const ORDER: Record<OfferStatus, number> = { accepted: 0, pending: 1, declined: 2, withdrawn: 3, archived: 4, removed: 5 };
 
-export default async function MyRequestOffersPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+export default async function MyRequestOffersPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/login?redirectTo=/parent/requests/${params.id}`);
 
