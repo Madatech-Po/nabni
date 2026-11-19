@@ -1150,4 +1150,155 @@ BEGIN
   RAISE NOTICE 'NAB-124 contact message checks passed.';
 END $$;
 
+-- ---------- NAB-125: admin pilot stats ----------
+-- Live data changes between runs, so the checks compare a snapshot taken before the fixtures
+-- with one taken after (b1 - b0 at a jsonb path).
+CREATE FUNCTION pg_temp.stat_delta(b0 jsonb, b1 jsonb, path text[]) RETURNS int
+LANGUAGE sql AS $$ SELECT (b1 #>> path)::int - (b0 #>> path)::int $$;
+
+DO $$
+DECLARE
+  st_admin_uid      uuid := gen_random_uuid();
+  st_parent_uid     uuid := gen_random_uuid();
+  st_educator_uid   uuid := gen_random_uuid();
+  st_e2e_parent_uid uuid := gen_random_uuid();
+  st_e2e_edu_uid    uuid := gen_random_uuid();
+  st_edu_id         uuid;
+  st_e2e_edu_id     uuid;
+  st_req1           uuid;
+  st_req2           uuid;
+  st_req_marked     uuid;
+  st_req_e2e        uuid;
+  st_offer1         uuid;
+  service_id        smallint := (SELECT min(id) FROM public.service_categories);
+  place_id          smallint := (SELECT min(id) FROM public.teaching_places);
+  gov_id            smallint := (SELECT min(id) FROM public.governorates);
+  unit_id           smallint := (SELECT min(id) FROM public.pricing_units);
+  b0                jsonb;
+  b1                jsonb;
+BEGIN
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
+    (st_admin_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-st-admin@example.invalid',
+     '{"full_name":"ST Admin","role":"parent"}', now(), now());
+  UPDATE public.profiles SET role = 'admin' WHERE id = st_admin_uid;
+
+  PERFORM pg_temp.act_as(st_admin_uid);
+  b0 := public.admin_pilot_stats();
+  PERFORM pg_temp.check(b0 ?& ARRAY['parents', 'educators', 'educators_by_status', 'requests', 'offers',
+                                   'avg_offers_per_request', 'median_hours_to_first_offer', 'matches', 'generated_at']
+      AND b0->'parents' ?& ARRAY['total', 'last_7_days']
+      AND b0->'educators' ?& ARRAY['total', 'last_7_days']
+      AND b0->'educators_by_status' ?& ARRAY['pending', 'verified', 'rejected', 'suspended']
+      AND b0->'requests' ?& ARRAY['posted', 'open', 'closed', 'cancelled', 'removed']
+      AND b0->'requests'->'posted' ?& ARRAY['total', 'last_7_days']
+      AND b0->'offers' ?& ARRAY['sent', 'pending', 'accepted', 'declined', 'withdrawn']
+      AND b0->'offers'->'sent' ?& ARRAY['total', 'last_7_days']
+      AND b0->'matches' ?& ARRAY['total', 'last_7_days'],
+    'admin gets admin_pilot_stats with the documented shape');
+
+  -- Fixtures: one real parent + educator, one e2e parent + educator (by the +e2e- email tag)
+  RESET ROLE;
+  INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at) VALUES
+    (st_parent_uid,     '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-st-parent@example.invalid',
+     '{"full_name":"ST Parent","role":"parent"}', now(), now()),
+    (st_educator_uid,   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-st-educator@example.invalid',
+     '{"full_name":"ST Educator","role":"educator"}', now(), now()),
+    (st_e2e_parent_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-st+e2e-parent@example.invalid',
+     '{"full_name":"ST e2e Parent","role":"parent"}', now(), now()),
+    (st_e2e_edu_uid,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'perm-st+e2e-educator@example.invalid',
+     '{"full_name":"ST e2e Educator","role":"educator"}', now(), now());
+
+  PERFORM pg_temp.act_as(st_educator_uid);
+  INSERT INTO public.educators (user_id, full_name, phone, governorate_id, bio, experience_years, gender)
+    VALUES (st_educator_uid, 'ST Educator', '01099990001', gov_id, 'bio', 2, 'male') RETURNING id INTO st_edu_id;
+  INSERT INTO public.educator_locations (educator_id, governorate_id) VALUES (st_edu_id, gov_id);
+  PERFORM pg_temp.act_as(st_e2e_edu_uid);
+  INSERT INTO public.educators (user_id, full_name, phone, governorate_id, bio, experience_years, gender)
+    VALUES (st_e2e_edu_uid, 'ST e2e Educator', '01099990002', gov_id, 'bio', 2, 'male') RETURNING id INTO st_e2e_edu_id;
+
+  PERFORM pg_temp.act_as(st_admin_uid);
+  b1 := public.admin_pilot_stats();
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{parents,total}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{parents,last_7_days}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{educators,total}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{educators,last_7_days}') = 1,
+    'pilot stats count the new parent and educator, not the e2e accounts or the admin');
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{educators_by_status,pending}') = 1,
+    'pilot stats count the pending educator profile, not the e2e one');
+
+  PERFORM public.set_educator_verification(st_edu_id, 'verified');
+  PERFORM public.set_educator_verification(st_e2e_edu_id, 'verified');
+
+  -- Requests: two real, one marked [E2E], one by the e2e parent
+  PERFORM pg_temp.act_as(st_parent_uid);
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (st_parent_uid, service_id, place_id, gov_id, 7, 'stats request one ' || repeat('x', 60)) RETURNING id INTO st_req1;
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (st_parent_uid, service_id, place_id, gov_id, 7, 'stats request two ' || repeat('x', 60)) RETURNING id INTO st_req2;
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (st_parent_uid, service_id, place_id, gov_id, 7, '[E2E] marked request ' || repeat('x', 60)) RETURNING id INTO st_req_marked;
+  PERFORM pg_temp.act_as(st_e2e_parent_uid);
+  INSERT INTO public.requests (parent_id, service_category_id, teaching_place_id, governorate_id, student_age, description)
+    VALUES (st_e2e_parent_uid, service_id, place_id, gov_id, 7, 'e2e parent request ' || repeat('x', 60)) RETURNING id INTO st_req_e2e;
+
+  -- Offers: real educator on req1, req2 and the marked request; e2e educator on req1 and req2
+  PERFORM pg_temp.act_as(st_educator_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule)
+    VALUES (st_req1, st_edu_id, 100, unit_id, 'Any day') RETURNING id INTO st_offer1;
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (st_req2, st_edu_id, 100, unit_id, 'Any day');
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (st_req_marked, st_edu_id, 100, unit_id, 'Any day');
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (st_req_e2e, st_edu_id, 100, unit_id, 'Any day');
+  PERFORM pg_temp.act_as(st_e2e_edu_uid);
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (st_req1, st_e2e_edu_id, 90, unit_id, 'Weekends');
+  INSERT INTO public.offers (request_id, educator_id, price, pricing_unit_id, schedule) VALUES (st_req2, st_e2e_edu_id, 90, unit_id, 'Weekends');
+
+  -- The parent accepts the real offer on req1 (req1 closes, the e2e offer there is declined)
+  PERFORM pg_temp.act_as(st_parent_uid);
+  PERFORM public.accept_offer(st_offer1);
+
+  PERFORM pg_temp.act_as(st_admin_uid);
+  b1 := public.admin_pilot_stats();
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{educators_by_status,verified}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{educators_by_status,pending}') = 0,
+    'verifying moves the real educator to verified; the e2e educator is not counted');
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{requests,posted,total}') = 2
+      AND pg_temp.stat_delta(b0, b1, '{requests,posted,last_7_days}') = 2
+      AND pg_temp.stat_delta(b0, b1, '{requests,open}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{requests,closed}') = 1,
+    'pilot stats count the two real requests, not the [E2E]-marked one or the e2e parent''s');
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{offers,sent,total}') = 2
+      AND pg_temp.stat_delta(b0, b1, '{offers,sent,last_7_days}') = 2
+      AND pg_temp.stat_delta(b0, b1, '{offers,accepted}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{offers,pending}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{offers,declined}') = 0,
+    'pilot stats count the real educator''s offers on real requests only');
+  PERFORM pg_temp.check(pg_temp.stat_delta(b0, b1, '{matches,total}') = 1
+      AND pg_temp.stat_delta(b0, b1, '{matches,last_7_days}') = 1,
+    'the accepted offer is a match');
+  PERFORM pg_temp.check(jsonb_typeof(b1->'avg_offers_per_request') = 'number'
+      AND (b1->>'avg_offers_per_request')::numeric >= 1
+      AND jsonb_typeof(b1->'median_hours_to_first_offer') = 'number'
+      AND (b1->>'median_hours_to_first_offer')::numeric >= 0,
+    'average offers per request and median hours to first offer are numbers once there are offers');
+
+  -- Denied: parent, educator, anon, inactive admin
+  PERFORM pg_temp.act_as(st_parent_uid);
+  PERFORM pg_temp.check(pg_temp.denied('SELECT public.admin_pilot_stats()'), 'a parent cannot read pilot stats');
+  PERFORM pg_temp.act_as(st_educator_uid);
+  PERFORM pg_temp.check(pg_temp.denied('SELECT public.admin_pilot_stats()'), 'an educator cannot read pilot stats');
+  PERFORM pg_temp.act_as(NULL);
+  PERFORM pg_temp.check(pg_temp.denied('SELECT public.admin_pilot_stats()'), 'anon cannot read pilot stats');
+  RESET ROLE;
+  UPDATE public.profiles SET is_active = false WHERE id = st_admin_uid;
+  PERFORM pg_temp.act_as(st_admin_uid);
+  PERFORM pg_temp.check(pg_temp.denied('SELECT public.admin_pilot_stats()'), 'an inactive admin cannot read pilot stats');
+
+  RESET ROLE;
+  PERFORM pg_temp.check(NOT has_function_privilege('anon', 'public.admin_pilot_stats()', 'EXECUTE')
+      AND NOT has_function_privilege('anon', 'public.e2e_account_ids()', 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', 'public.e2e_account_ids()', 'EXECUTE'),
+    'anon cannot execute admin_pilot_stats; nobody can call e2e_account_ids directly');
+  RAISE NOTICE 'NAB-125 pilot stats checks passed.';
+END $$;
+
 ROLLBACK;

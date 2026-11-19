@@ -33,6 +33,20 @@ export type RequestStatus = 'open' | 'closed' | 'cancelled' | 'removed';
 // Offers change status only through withdraw_offer / accept_offer / decline_offer (NAB-80).
 export type OfferStatus = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'archived' | 'removed';
 
+// admin_pilot_stats() (NAB-125). e2e accounts, [E2E] rows and admins are left out.
+export type StatCount = { total: number; last_7_days: number };
+export type AdminPilotStats = {
+  parents: StatCount;
+  educators: StatCount;
+  educators_by_status: Record<EducatorVerificationStatus, number>;
+  requests: { posted: StatCount } & Record<RequestStatus, number>;
+  offers: { sent: StatCount } & Record<OfferStatus, number>;
+  avg_offers_per_request: number | null;
+  median_hours_to_first_offer: number | null;
+  matches: StatCount;
+  generated_at: string;
+};
+
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.15' };
   public: {
@@ -349,6 +363,8 @@ export type Database = {
       };
       // NAB-124: admins only; returns handled_at (the original one if already handled).
       mark_contact_message_handled: { Args: { p_id: string }; Returns: string };
+      // NAB-125: admins only (insufficient_privilege otherwise).
+      admin_pilot_stats: { Args: Record<string, never>; Returns: AdminPilotStats };
       // Not executable by clients (EXECUTE revoked from anon/authenticated); listed for server-side use.
       notify: {
         Args: {
