@@ -1007,6 +1007,8 @@ DECLARE
   cm_admin_uid    uuid := gen_random_uuid();
   msg_id          uuid;
   msg2_id         uuid;
+  test_id         uuid;
+  look_id         uuid;
   handled         timestamptz;
   n               int;
   admins_n        int := (SELECT count(*) FROM public.profiles WHERE role = 'admin' AND is_active) + 1;
@@ -1023,7 +1025,7 @@ BEGIN
 
   -- Anonymous visitor submits
   PERFORM pg_temp.act_as(NULL);
-  msg_id := public.submit_contact_message('  زائر  ', ' Visitor@Example.invalid ', NULL, ' سؤال ', '  أريد أن أسأل عن المنصة  ');
+  msg_id := public.submit_contact_message('  زائر  ', ' Visitor@Example.com ', NULL, ' سؤال ', '  أريد أن أسأل عن المنصة  ');
   PERFORM pg_temp.check(msg_id IS NOT NULL, 'anon can submit a contact message');
   PERFORM pg_temp.check(pg_temp.denied(
     $q$INSERT INTO public.contact_messages (name, email, message) VALUES ('x', 'x@y.zz', 'direct insert!!')$q$),
@@ -1033,7 +1035,7 @@ BEGIN
   PERFORM pg_temp.check(pg_temp.denied(format($q$SELECT public.mark_contact_message_handled(%L)$q$, msg_id)),
     'anon cannot call mark_contact_message_handled');
   RESET ROLE;
-  PERFORM pg_temp.check((SELECT name = 'زائر' AND email = 'visitor@example.invalid' AND subject = 'سؤال'
+  PERFORM pg_temp.check((SELECT name = 'زائر' AND email = 'visitor@example.com' AND subject = 'سؤال'
         AND message = 'أريد أن أسأل عن المنصة' AND sender_id IS NULL AND handled_at IS NULL
       FROM public.contact_messages WHERE id = msg_id),
     'the message is stored trimmed, email lower-cased, no sender for anon');
@@ -1049,6 +1051,32 @@ BEGIN
   PERFORM pg_temp.check(nt.title = 'رسالة جديدة من صفحة تواصل معنا' AND nt.body = 'زائر — سؤال'
       AND nt.link = '/admin/messages',
     'admin.contact_message has the title, name + subject body and link');
+
+  -- NAB-139: messages from the reserved test domain (@example.invalid) are stored, notify nobody
+  PERFORM pg_temp.act_as(NULL);
+  test_id := public.submit_contact_message('[E2E] test', '  E2E-Run@Example.INVALID ', NULL, NULL, 'automated test message');
+  PERFORM pg_temp.check(test_id IS NOT NULL, 'anon can submit from @example.invalid');
+  PERFORM pg_temp.act_as(cm_educator_uid);
+  look_id := public.submit_contact_message('CM Educator', 'cm-edu@example.invalid', NULL, NULL, 'signed-in test message');
+  RESET ROLE;
+  PERFORM pg_temp.check((SELECT email = 'e2e-run@example.invalid' AND sender_id IS NULL AND handled_at IS NULL
+      FROM public.contact_messages WHERE id = test_id),
+    'an @example.invalid message is stored as usual (normalized email)');
+  PERFORM pg_temp.check((SELECT sender_id FROM public.contact_messages WHERE id = look_id) = cm_educator_uid,
+    'a signed-in @example.invalid message is stored with its sender');
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE data->>'contact_message_id' IN (test_id::text, look_id::text);
+  PERFORM pg_temp.check(n = 0, 'an @example.invalid message notifies nobody (anon or signed in)');
+  -- Only the exact reserved domain is silent; a look-alike address still notifies every admin once.
+  PERFORM pg_temp.act_as(NULL);
+  look_id := public.submit_contact_message('Lookalike', 'x@notexample.invalid', NULL, NULL, 'not the test domain');
+  RESET ROLE;
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE type = 'admin.contact_message' AND data->>'contact_message_id' = look_id::text;
+  PERFORM pg_temp.check(n = admins_n, 'a look-alike domain (x@notexample.invalid) still notifies every active admin once');
+  SELECT count(*) INTO n FROM public.notifications
+    WHERE type = 'admin.contact_message' AND recipient_id = cm_admin_uid;
+  PERFORM pg_temp.check(n = 2, 'the admin got exactly the two normal-address notifications, none for test messages');
 
   -- Validation (trimmed lengths)
   PERFORM pg_temp.act_as(NULL);
@@ -1074,7 +1102,7 @@ BEGIN
   PERFORM pg_temp.check(msg2_id IS NOT NULL, 'phone alone is enough to submit');
 
   -- Rate limit: 5 per hour per email (case-insensitive)
-  FOR i IN 1..4 LOOP
+  FOR i IN 1..5 LOOP
     PERFORM public.submit_contact_message('Visitor', 'VISITOR@example.invalid', NULL, NULL, 'message number ' || i);
   END LOOP;
   PERFORM pg_temp.check(pg_temp.fails_with($q$SELECT public.submit_contact_message('Visitor', 'visitor@example.invalid', NULL, NULL, 'one message too many')$q$, 'PT429'),
